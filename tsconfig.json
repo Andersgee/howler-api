@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "esModuleInterop": true,
+    "target": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": { "#src/*": ["src/*"] },
+    "removeComments": true
+  },
+  "include": ["./src/app.ts"],
+  "lib": ["ESNext"]
+}
