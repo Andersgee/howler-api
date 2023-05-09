@@ -6,12 +6,14 @@ import Fastify from "fastify";
 import { type SuperJSONResult } from "superjson/dist/types";
 
 if (!process.env.DATABASE_URL) throw new Error("no DATABASE_URL in env");
+if (!process.env.API_PORT) throw new Error("no API_PORT in env");
 
 //cant pass connection url to createPool for some reason? so split it
 const [, , , user, password, host, port, database] =
   process.env.DATABASE_URL.split(/:|\/|@/);
 
 const AUTH_SECRET = `Basic ${password}`;
+const PORT = process.env.API_PORT;
 
 const kysely = new Kysely({
   dialect: new MysqlDialect({
@@ -26,6 +28,14 @@ const kysely = new Kysely({
 });
 
 const fastify = Fastify();
+
+fastify.route({
+  method: "GET",
+  url: "/",
+  handler: async (request, reply) => {
+    reply.send({ message: "ok" });
+  },
+});
 
 fastify.route({
   method: "POST",
@@ -46,7 +56,8 @@ fastify.route({
 
 const start = async () => {
   try {
-    await fastify.listen({ port: Number(process.env.API_PORT) });
+    console.log(`listening on port ${PORT}`);
+    await fastify.listen({ host: "0.0.0.0", port: Number(PORT) });
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
