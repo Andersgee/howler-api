@@ -2,7 +2,7 @@ import "dotenv/config";
 import { type CompiledQuery, Kysely, MysqlDialect } from "kysely";
 import { createPool } from "mysql2";
 import { serialize, deserialize } from "superjson";
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 import { type SuperJSONResult } from "superjson/dist/types";
 
 if (!process.env.DATABASE_URL) throw new Error("no DATABASE_URL in env");
@@ -29,11 +29,26 @@ const kysely = new Kysely({
 
 const fastify = Fastify();
 
+type RequestWithQ = FastifyRequest<{
+  Querystring: { q: string };
+}>;
+
 fastify.route({
   method: "GET",
   url: "/",
-  handler: async (request, reply) => {
-    reply.send({ message: "ok" });
+  preHandler: async (request: RequestWithQ, reply) => {
+    if (request.headers.authorization !== AUTH_SECRET) {
+      reply.code(401).send("Unauthorized");
+    }
+  },
+  handler: async (request: RequestWithQ, reply) => {
+    const compiledQuery = deserialize(
+      JSON.parse(request.query.q) as SuperJSONResult
+    ) as CompiledQuery;
+
+    console.log("GET, compiledQuery:", compiledQuery);
+    const result = await kysely.executeQuery(compiledQuery);
+    reply.send(serialize(result));
   },
 });
 
@@ -48,7 +63,10 @@ fastify.route({
   handler: async (request, reply) => {
     const compiledQuery = deserialize(
       request.body as SuperJSONResult
-    ) as CompiledQuery<unknown>;
+    ) as CompiledQuery;
+
+    console.log("POST, compiledQuery:", compiledQuery);
+
     const result = await kysely.executeQuery(compiledQuery);
     reply.send(serialize(result));
   },
