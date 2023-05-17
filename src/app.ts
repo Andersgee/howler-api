@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { type CompiledQuery, Kysely, MysqlDialect } from "kysely";
+import { type CompiledQuery, Kysely, MysqlDialect, sql } from "kysely";
 import { createPool } from "mysql2";
 import { serialize, deserialize } from "superjson";
 import Fastify, { type FastifyRequest } from "fastify";
@@ -15,6 +15,8 @@ const [, , , user, password, host, port, database] =
 const AUTH_SECRET = `Basic ${password}`;
 const PORT = process.env.API_PORT;
 
+const DEBUG_ANALYZE_GET_QUERYS = true;
+
 const kysely = new Kysely({
   dialect: new MysqlDialect({
     pool: createPool({
@@ -27,6 +29,7 @@ const kysely = new Kysely({
   }),
 });
 
+//options: https://github.com/fastify/fastify/blob/main/docs/Reference/Server.md#maxparamlength
 const fastify = Fastify();
 
 type RequestWithQ = FastifyRequest<{
@@ -47,6 +50,17 @@ fastify.route({
     ) as CompiledQuery;
 
     console.log("GET, compiledQuery:", compiledQuery);
+
+    if (DEBUG_ANALYZE_GET_QUERYS) {
+      const debugQuery = {
+        sql: "EXPLAIN ANALYZE" + compiledQuery.sql,
+        parameters: compiledQuery.parameters,
+      } as CompiledQuery;
+      //console.log("debugQuery:", debugQuery);
+      const explainAnalyzeResult = await kysely.executeQuery(debugQuery);
+      console.log("compiledQuery analyzed:", explainAnalyzeResult);
+    }
+
     const result = await kysely.executeQuery(compiledQuery);
     reply.send(serialize(result));
   },

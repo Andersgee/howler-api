@@ -9,8 +9,8 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": { "#src/*": ["src/*"] },
-    "removeComments": true
+    "removeComments": true,
+    "lib": ["ESNext"]
   },
-  "include": ["./src/app.ts"],
-  "lib": ["ESNext"]
+  "include": ["./src/app.ts"]
 }
