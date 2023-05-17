@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { type CompiledQuery, Kysely, MysqlDialect, sql } from "kysely";
+import { type CompiledQuery, Kysely, MysqlDialect } from "kysely";
 import { createPool } from "mysql2";
 import { serialize, deserialize } from "superjson";
 import Fastify, { type FastifyRequest } from "fastify";
@@ -15,7 +15,7 @@ const [, , , user, password, host, port, database] =
 const AUTH_SECRET = `Basic ${password}`;
 const PORT = process.env.API_PORT;
 
-const DEBUG_ANALYZE_GET_QUERYS = true;
+const DEBUG_EXPLAIN_ANALYZE_GET_QUERYS = true;
 
 const kysely = new Kysely({
   dialect: new MysqlDialect({
@@ -50,15 +50,20 @@ fastify.route({
     ) as CompiledQuery;
 
     console.log("GET, compiledQuery:", compiledQuery);
-
-    if (DEBUG_ANALYZE_GET_QUERYS) {
-      const debugQuery = {
-        sql: "EXPLAIN ANALYZE" + compiledQuery.sql,
-        parameters: compiledQuery.parameters,
-      } as CompiledQuery;
-      //console.log("debugQuery:", debugQuery);
-      const explainAnalyzeResult = await kysely.executeQuery(debugQuery);
-      console.log("compiledQuery analyzed:", explainAnalyzeResult);
+    if (DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
+      try {
+        //https://dev.mysql.com/doc/refman/8.0/en/explain.html#explain-analyze
+        const debugQuery = {
+          sql: "EXPLAIN ANALYZE " + compiledQuery.sql,
+          parameters: compiledQuery.parameters,
+        } as CompiledQuery;
+        //console.log("debugQuery:", debugQuery);
+        const explainAnalyzeResult = await kysely.executeQuery(debugQuery);
+        console.log("compiledQuery analyzed:", explainAnalyzeResult);
+      } catch (error) {
+        console.log("catch... could not explain analyze that thing...");
+        //console.log("error:", error);
+      }
     }
 
     const result = await kysely.executeQuery(compiledQuery);
