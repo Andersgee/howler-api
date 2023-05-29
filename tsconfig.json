@@ -12,5 +12,5 @@
     "removeComments": true,
     "lib": ["ESNext"]
   },
-  "include": ["./src/app.ts"]
+  "include": ["**/*.ts"]
 }
