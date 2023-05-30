@@ -20,9 +20,11 @@
   "dependencies": {
     "dotenv": "^16.0.3",
     "fastify": "^4.17.0",
+    "firebase-admin": "^11.8.0",
     "kysely": "^0.24.2",
     "mysql2": "^3.3.0",
-    "superjson": "^1.12.3"
+    "superjson": "^1.12.3",
+    "zod": "^3.21.4"
   },
   "devDependencies": {
     "@types/node": "^18.16.2",

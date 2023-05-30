@@ -4,6 +4,11 @@ import { createPool } from "mysql2";
 import { serialize, deserialize } from "superjson";
 import Fastify, { type FastifyRequest } from "fastify";
 import { type SuperJSONResult } from "superjson/dist/types";
+import {
+  type Notification,
+  FirebaseCloudMessaging,
+} from "./firebase-cloud-messaging";
+import type { DB } from "./db-types";
 
 if (!process.env.DATABASE_URL) throw new Error("no DATABASE_URL in env");
 if (!process.env.API_PORT) throw new Error("no API_PORT in env");
@@ -17,7 +22,7 @@ const PORT = process.env.API_PORT;
 
 const DEBUG_EXPLAIN_ANALYZE_GET_QUERYS = true;
 
-const kysely = new Kysely({
+const kysely = new Kysely<DB>({
   dialect: new MysqlDialect({
     pool: createPool({
       user,
@@ -29,14 +34,16 @@ const kysely = new Kysely({
   }),
 });
 
+const fcm = new FirebaseCloudMessaging();
+
 //options: https://github.com/fastify/fastify/blob/main/docs/Reference/Server.md#maxparamlength
-const fastify = Fastify();
+const server = Fastify();
 
 type RequestWithQ = FastifyRequest<{
   Querystring: { q: string };
 }>;
 
-fastify.route({
+server.route({
   method: "GET",
   url: "/",
   preHandler: async (request: RequestWithQ, reply) => {
@@ -71,7 +78,7 @@ fastify.route({
   },
 });
 
-fastify.route({
+server.route({
   method: "POST",
   url: "/",
   preHandler: async (request, reply) => {
@@ -91,12 +98,68 @@ fastify.route({
   },
 });
 
+///////////////////////////////////////
+
+type NotifyRequestBody = {
+  userId: number;
+  title: string;
+  body: string;
+  imageUrl: string;
+  linkUrl: string;
+};
+
+server.post<{ Body: NotifyRequestBody }>(
+  "/notify",
+  {
+    //https://json-schema.org/ fastify is optimized to work with this
+    schema: {
+      body: {
+        type: "object",
+        required: ["userId", "title", "body", "imageUrl", "linkUrl"],
+        properties: {
+          userId: { type: "number" },
+          title: { type: "string" },
+          body: { type: "string" },
+          imageUrl: { type: "string" },
+          linkUrl: { type: "string" },
+        },
+      },
+    },
+  },
+  async (request, reply) => {
+    if (request.headers.authorization !== AUTH_SECRET) {
+      return reply.code(401).send("Unauthorized");
+    }
+
+    try {
+      const body = request.body;
+      const user = await kysely
+        .selectFrom("User")
+        .select("fcmToken")
+        .where("id", "=", body.userId)
+        .executeTakeFirst();
+      if (!user?.fcmToken) {
+        return reply.code(401).send({ message: "no user.fcmToken" });
+      }
+
+      const notification: Notification = {
+        ...body,
+        token: user.fcmToken,
+      };
+      const result = await fcm.sendNotification(notification);
+      reply.send(result);
+    } catch (error) {
+      reply.code(401).send({ message: "not ok" });
+    }
+  }
+);
+
 const start = async () => {
   try {
     console.log(`listening on port ${PORT}`);
-    await fastify.listen({ host: "0.0.0.0", port: Number(PORT) });
+    await server.listen({ host: "0.0.0.0", port: Number(PORT) });
   } catch (err) {
-    fastify.log.error(err);
+    server.log.error(err);
     process.exit(1);
   }
 };
