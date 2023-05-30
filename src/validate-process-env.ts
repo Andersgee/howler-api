@@ -15,7 +15,7 @@ export const envSchema = z.object({
   HOWLER_FIREBASE_ADMIN_SERVICE_ACCOUNT_PRIVATE_KEY: z.string(),
 });
 
-function formatErrors(errors: Record<string, any>) {
+function formatErrors(errors: z.ZodFormattedError<z.infer<typeof envSchema>>) {
   return Object.entries(errors)
     .map(([name, value]) => {
       if (value && "_errors" in value)
