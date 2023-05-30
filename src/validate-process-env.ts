@@ -2,10 +2,6 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { z } from "zod";
 
-// import this file in next.config.mjs to validate process.env at build time
-// also update envSchema when changing .env
-// this file cant be .ts until next.config supports .ts extension
-
 /**
  * keep this up to date with .env
  *
