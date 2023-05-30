@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./validate-process-env";
 import { type CompiledQuery, Kysely, MysqlDialect } from "kysely";
 import { createPool } from "mysql2";
 import { serialize, deserialize } from "superjson";
@@ -9,9 +10,6 @@ import {
   FirebaseCloudMessaging,
 } from "./firebase-cloud-messaging";
 import type { DB } from "./db-types";
-
-if (!process.env.DATABASE_URL) throw new Error("no DATABASE_URL in env");
-if (!process.env.API_PORT) throw new Error("no API_PORT in env");
 
 //cant pass connection url to createPool for some reason? so split it
 const [, , , user, password, host, port, database] =
