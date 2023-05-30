@@ -111,7 +111,14 @@ type NotifyRequestBody = {
 server.post<{ Body: NotifyRequestBody }>(
   "/notify",
   {
+    onRequest: async (request, reply) => {
+      if (request.headers.authorization !== AUTH_SECRET) {
+        return reply.code(401).send("Unauthorized");
+      }
+    },
     //https://json-schema.org/ fastify is optimized to work with this
+    //also see https://www.fastify.io/docs/latest/Reference/Lifecycle/ for order of execution of these "hooks"
+    //         https://www.fastify.io/docs/latest/Reference/TypeScript/#hooks
     schema: {
       body: {
         type: "object",
@@ -127,10 +134,6 @@ server.post<{ Body: NotifyRequestBody }>(
     },
   },
   async (request, reply) => {
-    if (request.headers.authorization !== AUTH_SECRET) {
-      return reply.code(401).send("Unauthorized");
-    }
-
     try {
       const body = request.body;
       const user = await kysely
