@@ -3,7 +3,7 @@ import "./validate-process-env";
 import { type CompiledQuery, Kysely, MysqlDialect } from "kysely";
 import { createPool } from "mysql2";
 import { serialize, deserialize } from "superjson";
-import Fastify, { type FastifyRequest } from "fastify";
+import Fastify from "fastify";
 import { type SuperJSONResult } from "superjson/dist/types";
 import {
   type Notification,
@@ -34,25 +34,48 @@ const kysely = new Kysely<DB>({
 
 const fcm = new FirebaseCloudMessaging();
 
-//options: https://github.com/fastify/fastify/blob/main/docs/Reference/Server.md#maxparamlength
 const server = Fastify();
 
-type RequestWithQ = FastifyRequest<{
-  Querystring: { q: string };
-}>;
+/**
+ * example usage: `throw errorbody(401, "some message")`
+ *
+ * for async functions there is only 2 options:
+ * - return an object, for example: { hello: "world" }
+ * - throw an object that looks like this: { statusCode, message };
+ *
+ * use methods on the `reply` param to set other things that is not simply the payload, like reply.code(201) for example
+ */
+function errorMessage(statusCode: number, message?: string) {
+  return { statusCode, message: message || "no info" };
+}
 
-server.route({
+function parseCompiledQuery(body: unknown) {
+  try {
+    if (typeof body === "string") {
+      return deserialize(JSON.parse(body) as SuperJSONResult) as CompiledQuery;
+    }
+    return deserialize(body as SuperJSONResult) as CompiledQuery;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+//https://www.fastify.io/docs/latest/Reference/Lifecycle/ for order of execution of hooks
+server.addHook("onRequest", async (request) => {
+  if (request.headers.authorization !== AUTH_SECRET) {
+    throw errorMessage(401, "Unauthorized");
+  }
+});
+
+server.route<{ Querystring: { q: string } }>({
   method: "GET",
   url: "/",
-  preHandler: async (request: RequestWithQ, reply) => {
-    if (request.headers.authorization !== AUTH_SECRET) {
-      reply.code(401).send("Unauthorized");
-    }
-  },
-  handler: async (request: RequestWithQ, reply) => {
-    const compiledQuery = deserialize(
-      JSON.parse(request.query.q) as SuperJSONResult
-    ) as CompiledQuery;
+  handler: async (request, reply) => {
+    const compiledQuery = parseCompiledQuery(request.query.q);
+    if (!compiledQuery) throw errorMessage(400, "Bad query");
+
+    //reply.status(201);
 
     console.log("GET, compiledQuery:", compiledQuery);
     if (DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
@@ -72,66 +95,51 @@ server.route({
     }
 
     const result = await kysely.executeQuery(compiledQuery);
-    reply.send(serialize(result));
+    return serialize(result);
   },
 });
 
 server.route({
   method: "POST",
   url: "/",
-  preHandler: async (request, reply) => {
-    if (request.headers.authorization !== AUTH_SECRET) {
-      reply.code(401).send("Unauthorized");
-    }
-  },
   handler: async (request, reply) => {
-    const compiledQuery = deserialize(
-      request.body as SuperJSONResult
-    ) as CompiledQuery;
+    const compiledQuery = parseCompiledQuery(request.body);
+    if (!compiledQuery) throw errorMessage(400, "Bad body");
 
     console.log("POST, compiledQuery:", compiledQuery);
 
     const result = await kysely.executeQuery(compiledQuery);
-    reply.send(serialize(result));
+    return serialize(result);
   },
 });
 
 ///////////////////////////////////////
 
-type NotifyRequestBody = {
-  userId: number;
-  title: string;
-  body: string;
-  imageUrl: string;
-  linkUrl: string;
-};
-
-server.post<{ Body: NotifyRequestBody }>(
-  "/notify",
-  {
-    onRequest: async (request, reply) => {
-      if (request.headers.authorization !== AUTH_SECRET) {
-        return reply.code(401).send("Unauthorized");
-      }
-    },
-    //https://json-schema.org/ fastify is optimized to work with this
-    //also see https://www.fastify.io/docs/latest/Reference/Lifecycle/ for order of execution of these "hooks"
-    //         https://www.fastify.io/docs/latest/Reference/TypeScript/#hooks
-    schema: {
-      body: {
-        type: "object",
-        required: ["userId", "title", "body", "imageUrl", "linkUrl"],
-        properties: {
-          userId: { type: "number" },
-          title: { type: "string" },
-          body: { type: "string" },
-          imageUrl: { type: "string" },
-          linkUrl: { type: "string" },
-        },
+server.route<{
+  Body: {
+    userId: number;
+    title: string;
+    body: string;
+    imageUrl: string;
+    linkUrl: string;
+  };
+}>({
+  method: "POST",
+  url: "/notify",
+  schema: {
+    body: {
+      type: "object",
+      required: ["userId", "title", "body", "imageUrl", "linkUrl"],
+      properties: {
+        userId: { type: "number" },
+        title: { type: "string" },
+        body: { type: "string" },
+        imageUrl: { type: "string" },
+        linkUrl: { type: "string" },
       },
     },
   },
-  async (request, reply) => {
+  handler: async (request, reply) => {
     try {
       const body = request.body;
       const user = await kysely
@@ -139,21 +147,19 @@ server.post<{ Body: NotifyRequestBody }>(
         .select("fcmToken")
         .where("id", "=", body.userId)
         .executeTakeFirst();
-      if (!user?.fcmToken) {
-        return reply.code(401).send({ message: "no user.fcmToken" });
-      }
+      if (!user?.fcmToken) throw errorMessage(401, "no user.fcmToken");
 
       const notification: Notification = {
         ...body,
         token: user.fcmToken,
       };
       const result = await fcm.sendNotification(notification);
-      reply.send(result);
+      return result;
     } catch (error) {
-      reply.code(401).send({ message: "not ok" });
+      throw errorMessage(401);
     }
-  }
-);
+  },
+});
 
 const start = async () => {
   try {
