@@ -7,7 +7,7 @@ import type {
   //ConditionMessage,
 } from "firebase-admin/messaging";
 
-export type Notification = {
+type Notification = {
   token: string;
   title: string;
   body: string;
@@ -16,7 +16,7 @@ export type Notification = {
 };
 
 /** simpler wrapper for interacting with Firebase cloud messaging service */
-export class FirebaseCloudMessaging {
+class FirebaseCloudMessaging {
   app: admin.app.App;
   messaging: Messaging;
   constructor() {
@@ -55,6 +55,8 @@ export class FirebaseCloudMessaging {
   }
 }
 
+export const fcm = new FirebaseCloudMessaging();
+
 function createTokenMessage(message: Notification) {
   const payload = createBaseMessage(message) as TokenMessage;
   payload.token = message.token;
@@ -73,7 +75,7 @@ function createTokenMessage(message: Notification) {
  * TLDR; only `notification.title` and `notification.body` is considered platform independent
  * everything else like `android`, `apns` and `webpush` config objects configures how firebase messaging service adjusts the message before sending it depending on device.
  */
-export function createBaseMessage(message: Notification) {
+function createBaseMessage(message: Notification) {
   const payload: BaseMessage = {
     //token: message.token,
     notification: {

@@ -13,6 +13,7 @@ export const envSchema = z.object({
   HOWLER_FIREBASE_ADMIN_PROJECT_ID: z.string(),
   HOWLER_FIREBASE_ADMIN_CLIENT_EMAIL: z.string(),
   HOWLER_FIREBASE_ADMIN_SERVICE_ACCOUNT_PRIVATE_KEY: z.string(),
+  AUTH_SECRET: z.string(),
 });
 
 function formatErrors(errors: z.ZodFormattedError<z.infer<typeof envSchema>>) {
