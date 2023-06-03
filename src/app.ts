@@ -27,7 +27,7 @@ const server = Fastify();
 
 server.addHook("onRequest", async (request) => {
   if (request.headers.authorization !== process.env.AUTH_SECRET) {
-    throw errorMessage(401, "Unauthorized");
+    throw errorMessage("UNAUTHORIZED");
   }
 });
 
@@ -40,7 +40,7 @@ server.route<{ Querystring: { q: string } }>({
   url: "/",
   handler: async (request, _reply) => {
     const compiledQuery = parseCompiledQuery(request.query.q);
-    if (!compiledQuery) throw errorMessage(400, "Bad query");
+    if (!compiledQuery) throw errorMessage("BAD_REQUEST", "bad query");
 
     if (DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
       await consolelogExplainAnalyzeResult(compiledQuery);
@@ -56,7 +56,7 @@ server.route({
   url: "/",
   handler: async (request, _reply) => {
     const compiledQuery = parseCompiledQuery(request.body);
-    if (!compiledQuery) throw errorMessage(400, "Bad body");
+    if (!compiledQuery) throw errorMessage("BAD_REQUEST", "bad body");
 
     console.log("POST, compiledQuery:", compiledQuery);
 
@@ -101,7 +101,8 @@ server.route<{ Body: NotifyBody }>({
         .select("fcmToken")
         .where("id", "=", body.userId)
         .executeTakeFirst();
-      if (!user?.fcmToken) throw errorMessage(401, "no user.fcmToken");
+      if (!user?.fcmToken)
+        throw errorMessage("UNAUTHORIZED", "no user.fcmToken");
 
       const result = await fcm.sendNotification({
         ...body,
@@ -109,7 +110,7 @@ server.route<{ Body: NotifyBody }>({
       });
       return result;
     } catch (error) {
-      throw errorMessage(401);
+      throw errorMessage("UNAUTHORIZED");
     }
   },
 });
@@ -118,9 +119,7 @@ server.route<{ Body: NotifyBody }>({
 // debug //
 ///////////
 
-async function consolelogExplainAnalyzeResult(
-  compiledQuery: CompiledQuery<unknown>
-) {
+async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
   try {
     //https://dev.mysql.com/doc/refman/8.0/en/explain.html#explain-analyze
     const debugQuery = {
@@ -130,7 +129,6 @@ async function consolelogExplainAnalyzeResult(
     const explainAnalyzeResult = await db.executeQuery(debugQuery);
     console.log("compiledQuery analyzed:", explainAnalyzeResult);
   } catch (error) {
-    console.log("catch... could not explain analyze that thing...");
     console.log("error:", error);
   }
 }
