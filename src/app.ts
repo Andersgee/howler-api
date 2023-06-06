@@ -6,28 +6,23 @@ import Fastify from "fastify";
 import { fcm } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";
 import { errorMessage } from "./utils";
+import { jsonArrayFrom } from "kysely/helpers/mysql";
 
 /*
 notes to self:
-- for consistency: ONLY USE ASYNC handlers/hooks (the sync handlers use different syntax)
-
-- for async handlers we either 
-    1. return an object or
-    2. throw an errorMessage()
-
-- returned object only sets response body, to set other things, use the reply methods like reply.status(201) etc
-
+for consistency: only use ASYNC handlers/hooks (the sync handlers use different syntax)
+- either return errorMessage()
+- or just return an object
+  - returned object only sets response body, to set other things, use the reply methods like reply.status(201) etc
 - for order of execution of hooks https://www.fastify.io/docs/latest/Reference/Lifecycle/ 
     do auth as soon as possible, eg in onRequest hook which is the first one, before body is even parsed
 */
-
-const DEBUG_EXPLAIN_ANALYZE_GET_QUERYS = true;
 
 const server = Fastify();
 
 server.addHook("onRequest", async (request) => {
   if (request.headers.authorization !== process.env.AUTH_SECRET) {
-    throw errorMessage("UNAUTHORIZED");
+    return errorMessage("CLIENTERROR_UNAUTHORIZED");
   }
 });
 
@@ -40,9 +35,9 @@ server.route<{ Querystring: { q: string } }>({
   url: "/",
   handler: async (request, _reply) => {
     const compiledQuery = parseCompiledQuery(request.query.q);
-    if (!compiledQuery) throw errorMessage("BAD_REQUEST", "bad query");
+    if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-    if (DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
+    if (process.env.DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
       await consolelogExplainAnalyzeResult(compiledQuery);
     }
 
@@ -56,9 +51,11 @@ server.route({
   url: "/",
   handler: async (request, _reply) => {
     const compiledQuery = parseCompiledQuery(request.body);
-    if (!compiledQuery) throw errorMessage("BAD_REQUEST", "bad body");
+    if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-    console.log("POST, compiledQuery:", compiledQuery);
+    if (process.env.DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
+      await consolelogExplainAnalyzeResult(compiledQuery);
+    }
 
     const result = await db.executeQuery(compiledQuery);
     return serialize(result);
@@ -96,21 +93,40 @@ server.route<{ Body: NotifyBody }>({
   handler: async (request, _reply) => {
     try {
       const body = request.body;
+
       const user = await db
         .selectFrom("User")
-        .select("fcmToken")
-        .where("id", "=", body.userId)
+        .selectAll("User")
+        .where("User.id", "=", body.userId)
+        .select((eb) => [
+          jsonArrayFrom(
+            eb
+              .selectFrom("FcmToken")
+              .select("FcmToken.id")
+              .whereRef("User.id", "=", "FcmToken.userId")
+          ).as("FcmTokens"),
+        ])
         .executeTakeFirst();
-      if (!user?.fcmToken)
-        throw errorMessage("UNAUTHORIZED", "no user.fcmToken");
 
+      if (!user) return errorMessage("CLIENTERROR_BAD_REQUEST", "no user");
+
+      console.log("user.FcmTokens:", user.FcmTokens);
+      if (user.FcmTokens.length < 1) {
+        return errorMessage(
+          "CLIENTERROR_CONFLICT",
+          `userId: ${body.userId} has no fcmTokens to send to`
+        );
+      }
+
+      //TODO: send to all tokens this user has instead of just the first one
+      const token = user.FcmTokens[0];
       const result = await fcm.sendNotification({
         ...body,
-        token: user.fcmToken,
+        token: token.id,
       });
       return result;
     } catch (error) {
-      throw errorMessage("UNAUTHORIZED");
+      return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
 });
@@ -139,8 +155,11 @@ async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
 
 async function start() {
   try {
-    console.log(`listening on port ${process.env.PORT}`);
-    await server.listen({ host: "0.0.0.0", port: Number(process.env.PORT) });
+    console.log(`listening on port ${process.env.API_PORT}`);
+    await server.listen({
+      host: "0.0.0.0",
+      port: Number(process.env.API_PORT),
+    });
   } catch (err) {
     server.log.error(err);
     process.exit(1);

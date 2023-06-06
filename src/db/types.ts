@@ -19,6 +19,10 @@ export type Example = {
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
 };
+export type FcmToken = {
+  id: string;
+  userId: number;
+};
 export type Place = {
   id: Generated<number>;
   label: string;
@@ -33,7 +37,6 @@ export type User = {
   githubUserId: number | null;
   image: string | null;
   name: string;
-  fcmToken: string | null;
 };
 export type UserEventPivot = {
   userId: number;
@@ -43,6 +46,7 @@ export type UserEventPivot = {
 export type DB = {
   Event: Event;
   Example: Example;
+  FcmToken: FcmToken;
   Place: Place;
   User: User;
   UserEventPivot: UserEventPivot;

@@ -19,8 +19,8 @@ services:
       MYSQL_USER: $MYSQL_USER
       MYSQL_PASSWORD: $MYSQL_PASSWORD
       MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
-    #ports:
-    #  - $MYSQL_PORT_EXPOSED:$MYSQL_PORT
+    ports:
+      - $MYSQL_PORT_EXPOSED:$MYSQL_PORT
     expose:
       - $MYSQL_PORT
     volumes:
