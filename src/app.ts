@@ -68,6 +68,7 @@ server.route({
 
 type NotifyBody = {
   userId: number;
+  fcmToken: string;
   title: string;
   body: string;
   imageUrl: string;
@@ -83,6 +84,7 @@ server.route<{ Body: NotifyBody }>({
       required: ["userId", "title", "body", "imageUrl", "linkUrl"],
       properties: {
         userId: { type: "number" },
+        fcmToken: { type: "string" },
         title: { type: "string" },
         body: { type: "string" },
         imageUrl: { type: "string" },
@@ -124,7 +126,7 @@ server.route<{ Body: NotifyBody }>({
         ...body,
         token: token.id,
       });
-      return result;
+      return { message: "ok" };
     } catch (error) {
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
@@ -136,6 +138,7 @@ server.route<{ Body: NotifyBody }>({
 ///////////
 
 async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
+  console.log("compiledQuery:", compiledQuery.sql);
   try {
     //https://dev.mysql.com/doc/refman/8.0/en/explain.html#explain-analyze
     const debugQuery = {
