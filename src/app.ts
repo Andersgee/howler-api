@@ -37,7 +37,7 @@ server.route<{ Querystring: { q: string } }>({
     const compiledQuery = parseCompiledQuery(request.query.q);
     if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-    if (process.env.DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
+    if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
       await consolelogExplainAnalyzeResult(compiledQuery);
     }
 
@@ -53,7 +53,7 @@ server.route({
     const compiledQuery = parseCompiledQuery(request.body);
     if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-    if (process.env.DEBUG_EXPLAIN_ANALYZE_GET_QUERYS) {
+    if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
       await consolelogExplainAnalyzeResult(compiledQuery);
     }
 
