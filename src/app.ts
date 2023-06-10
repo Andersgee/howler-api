@@ -5,7 +5,7 @@ import { serialize } from "superjson";
 import Fastify from "fastify";
 import { fcm } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";
-import { errorMessage } from "./utils";
+import { FIREBASE_MESSAGING_ERROR_CODES, errorMessage } from "./utils";
 import { jsonArrayFrom } from "kysely/helpers/mysql";
 
 /*
@@ -125,7 +125,42 @@ server.route<{ Body: NotifyBody }>({
         token: fcmToken.id,
       }));
       const batchResponse = await fcm.sendNotifications(notifications);
-      return { message: batchResponse };
+
+      for (const response of batchResponse.responses) {
+        if (!response.success) {
+          const code = response.error?.code; //guaranteed to exist when response.success is false
+          if (!code) continue;
+          if (
+            [
+              FIREBASE_MESSAGING_ERROR_CODES.INVALID_ARGUMENT,
+              FIREBASE_MESSAGING_ERROR_CODES.INVALID_PAYLOAD,
+            ].includes(code)
+          ) {
+            console.log(
+              "fcm.send() error (there is prob an issue with the payload we sent), error:",
+              response.error
+            );
+          } else if (
+            [
+              FIREBASE_MESSAGING_ERROR_CODES.REGISTRATION_TOKEN_NOT_REGISTERED,
+              FIREBASE_MESSAGING_ERROR_CODES.INVALID_RECIPIENT,
+            ].includes(code)
+          ) {
+            console.log(
+              "fcm.send() error (fcmToken is probably stale, should remove it from db). error:",
+              response.error
+            );
+            //TODO: remove any stale/invalid tokens
+          } else {
+            console.log(
+              "fcm.send() error (I didnt check for this error explicitly). error:",
+              response.error
+            );
+          }
+        }
+      }
+
+      return { message: "ok" };
     } catch (error) {
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
