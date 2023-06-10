@@ -68,7 +68,6 @@ server.route({
 
 type NotifyBody = {
   userId: number;
-  fcmToken: string;
   title: string;
   body: string;
   imageUrl: string;
@@ -84,7 +83,6 @@ server.route<{ Body: NotifyBody }>({
       required: ["userId", "title", "body", "imageUrl", "linkUrl"],
       properties: {
         userId: { type: "number" },
-        fcmToken: { type: "string" },
         title: { type: "string" },
         body: { type: "string" },
         imageUrl: { type: "string" },
@@ -98,7 +96,7 @@ server.route<{ Body: NotifyBody }>({
 
       const user = await db
         .selectFrom("User")
-        .selectAll("User")
+        .select("User.name")
         .where("User.id", "=", body.userId)
         .select((eb) => [
           jsonArrayFrom(
@@ -106,27 +104,28 @@ server.route<{ Body: NotifyBody }>({
               .selectFrom("FcmToken")
               .select("FcmToken.id")
               .whereRef("User.id", "=", "FcmToken.userId")
-          ).as("FcmTokens"),
+          ).as("fcmTokens"),
         ])
         .executeTakeFirst();
 
       if (!user) return errorMessage("CLIENTERROR_BAD_REQUEST", "no user");
 
-      console.log("user.FcmTokens:", user.FcmTokens);
-      if (user.FcmTokens.length < 1) {
+      console.log("user.FcmTokens:", user.fcmTokens);
+      if (user.fcmTokens.length < 1) {
         return errorMessage(
           "CLIENTERROR_CONFLICT",
           `userId: ${body.userId} has no fcmTokens to send to`
         );
       }
 
-      //TODO: send to all tokens this user has instead of just the first one
-      const token = user.FcmTokens[0];
-      const result = await fcm.sendNotification({
+      //const result = await fcm.sendNotification({...body, token: fcmToken.id});
+
+      const notifications = user.fcmTokens.map((fcmToken) => ({
         ...body,
-        token: token.id,
-      });
-      return { message: "ok" };
+        token: fcmToken.id,
+      }));
+      const batchResponse = await fcm.sendNotifications(notifications);
+      return { message: batchResponse };
     } catch (error) {
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
