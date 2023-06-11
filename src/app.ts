@@ -109,8 +109,6 @@ server.route<{ Body: NotifyBody }>({
         .executeTakeFirst();
 
       if (!user) return errorMessage("CLIENTERROR_BAD_REQUEST", "no user");
-
-      console.log("user.FcmTokens:", user.fcmTokens);
       if (user.fcmTokens.length < 1) {
         return errorMessage(
           "CLIENTERROR_CONFLICT",
@@ -129,7 +127,10 @@ server.route<{ Body: NotifyBody }>({
       for (const response of batchResponse.responses) {
         if (!response.success) {
           const code = response.error?.code; //guaranteed to exist when response.success is false
-          if (!code) continue;
+          if (!code) {
+            console.log("fcm.send() response error (no code)");
+            continue;
+          }
           if (
             [
               FIREBASE_MESSAGING_ERROR_CODES.INVALID_ARGUMENT,
@@ -137,7 +138,7 @@ server.route<{ Body: NotifyBody }>({
             ].includes(code)
           ) {
             console.log(
-              "fcm.send() error (there is prob an issue with the payload we sent), error:",
+              "fcm.send() response error (there is prob an issue with the payload we sent), error:",
               response.error
             );
           } else if (
@@ -147,13 +148,13 @@ server.route<{ Body: NotifyBody }>({
             ].includes(code)
           ) {
             console.log(
-              "fcm.send() error (fcmToken is probably stale, should remove it from db). error:",
+              "fcm.send() response error (fcmToken is probably stale, should remove it from db). error:",
               response.error
             );
             //TODO: remove any stale/invalid tokens
           } else {
             console.log(
-              "fcm.send() error (I didnt check for this error explicitly). error:",
+              "fcm.send() response error (I didnt check for this error explicitly). error:",
               response.error
             );
           }

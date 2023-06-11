@@ -22,11 +22,8 @@ export type Example = {
 };
 export type FcmToken = {
   id: string;
+  createdAt: Generated<Timestamp>;
   userId: number;
-};
-export type Follow = {
-  userId: number;
-  followerId: number;
 };
 export type Place = {
   id: Generated<number>;
@@ -48,12 +45,16 @@ export type UserEventPivot = {
   eventId: number;
   joinDate: Generated<Timestamp>;
 };
+export type UserUserPivot = {
+  userId: number;
+  followerId: number;
+};
 export type DB = {
   Event: Event;
   Example: Example;
   FcmToken: FcmToken;
-  Follow: Follow;
   Place: Place;
   User: User;
   UserEventPivot: UserEventPivot;
+  UserUserPivot: UserUserPivot;
 };
