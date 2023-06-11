@@ -7,6 +7,7 @@ import { fcm } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";
 import { FIREBASE_MESSAGING_ERROR_CODES, errorMessage } from "./utils";
 import { jsonArrayFrom } from "kysely/helpers/mysql";
+import cors from "@fastify/cors";
 
 /*
 notes to self:
@@ -19,6 +20,10 @@ for consistency: only use ASYNC handlers/hooks (the sync handlers use different 
 */
 
 const server = Fastify();
+console.log("registering cors");
+await server.register(cors, {
+  // put your options here
+});
 
 server.addHook("onRequest", async (request) => {
   if (request.headers.authorization !== process.env.AUTH_SECRET) {

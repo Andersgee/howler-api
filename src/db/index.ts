@@ -4,6 +4,7 @@ import { createPool } from "mysql2";
 import { deserialize } from "superjson";
 import { type SuperJSONResult } from "superjson/dist/types";
 
+//
 //cant pass connection url to createPool for some reason? so split it
 const [, , , user, password, host, port, database] =
   process.env.DATABASE_URL.split(/:|\/|@/);
@@ -28,6 +29,7 @@ export function parseCompiledQuery(body: string | unknown) {
     return deserialize(body as SuperJSONResult) as CompiledQuery;
   } catch (error) {
     console.error(error);
+    console.log("actual body that couldnt be parsed, body:", body);
     return null;
   }
 }
