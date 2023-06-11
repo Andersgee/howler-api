@@ -103,7 +103,7 @@ server.route<{ Body: NotifyBody }>({
             eb
               .selectFrom("FcmToken")
               .select("FcmToken.id")
-              .whereRef("User.id", "=", "FcmToken.userId")
+              .whereRef("FcmToken.userId", "=", "User.id")
           ).as("fcmTokens"),
         ])
         .executeTakeFirst();
@@ -161,7 +161,7 @@ server.route<{ Body: NotifyBody }>({
         }
       }
 
-      return { message: "ok" };
+      return { message: batchResponse };
     } catch (error) {
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
