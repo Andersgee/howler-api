@@ -11,7 +11,7 @@ type Notification = {
   token: string;
   title: string;
   body: string;
-  imageUrl: string;
+  imageUrl?: string;
   linkUrl: string;
 };
 
@@ -87,9 +87,7 @@ function createBaseMessage(message: Notification) {
       notification: {
         icon: "/icons/favicon-48x48.png",
       },
-      headers: {
-        image: message.imageUrl,
-      },
+      headers: message.imageUrl ? { image: message.imageUrl } : undefined,
       fcmOptions: {
         link: message.linkUrl,
       },
