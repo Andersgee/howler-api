@@ -3,11 +3,13 @@ import "./validate-process-env";
 import { type CompiledQuery } from "kysely";
 import { serialize } from "superjson";
 import Fastify from "fastify";
-import { fcm } from "./firebase-cloud-messaging";
+import { fcm, type Notification } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";
 import { FIREBASE_MESSAGING_ERROR_CODES, errorMessage } from "./utils";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/mysql";
 import cors from "@fastify/cors";
+import type { BatchResponse } from "firebase-admin/messaging";
+import { hashidFromId } from "./hashid";
 
 /*
 notes to self:
@@ -119,51 +121,13 @@ server.route<{ Body: NotifyBody }>({
         );
       }
 
-      //const result = await fcm.sendNotification({...body, token: fcmToken.id});
-
-      const notifications = user.fcmTokens.map((fcmToken) => ({
+      const notifications: Notification[] = user.fcmTokens.map((fcmToken) => ({
         ...body,
         imageUrl: undefined, //may or may not send an extra image in notification
         token: fcmToken.id,
       }));
       const batchResponse = await fcm.sendNotifications(notifications);
-
-      for (const response of batchResponse.responses) {
-        if (!response.success) {
-          const code = response.error?.code; //guaranteed to exist when response.success is false
-          if (!code) {
-            console.log("fcm.send() response error (no code)");
-            continue;
-          }
-          if (
-            [
-              FIREBASE_MESSAGING_ERROR_CODES.INVALID_ARGUMENT,
-              FIREBASE_MESSAGING_ERROR_CODES.INVALID_PAYLOAD,
-            ].includes(code)
-          ) {
-            console.log(
-              "fcm.send() response error (there is prob an issue with the payload we sent), error:",
-              response.error
-            );
-          } else if (
-            [
-              FIREBASE_MESSAGING_ERROR_CODES.REGISTRATION_TOKEN_NOT_REGISTERED,
-              FIREBASE_MESSAGING_ERROR_CODES.INVALID_RECIPIENT,
-            ].includes(code)
-          ) {
-            console.log(
-              "fcm.send() response error (fcmToken is probably stale, should remove it from db). error:",
-              response.error
-            );
-            //TODO: remove any stale/invalid tokens
-          } else {
-            console.log(
-              "fcm.send() response error (I didnt check for this error explicitly). error:",
-              response.error
-            );
-          }
-        }
-      }
+      consolelogBatchresponseResult(batchResponse);
 
       return { message: batchResponse };
     } catch (error) {
@@ -194,96 +158,45 @@ server.route<{
 
       const event = await db
         .selectFrom("Event")
-        .selectAll()
+        .selectAll("Event")
         .where("Event.id", "=", body.eventId)
-        .select((eb) => [
+        .select((b) => [
           jsonObjectFrom(
-            eb
+            b
               .selectFrom("User")
-              .select((x) => [
-                "User.id",
-                "User.name",
-                jsonArrayFrom(
-                  x
-                    .selectFrom("UserUserPivot")
-                    .select("UserUserPivot.followerId")
-                    .whereRef("UserUserPivot.userId", "=", "User.id")
-                ).as("recievedFollows"),
-              ])
+              .select(["User.id", "User.name"])
               .whereRef("User.id", "=", "Event.creatorId")
           ).as("creator"),
-        ])
-        .executeTakeFirst();
-
-      if (!event) return errorMessage("CLIENTERROR_BAD_REQUEST", "no event");
-      /*
-
-        event.creator.recievedFollows[0].
-
-      const user = await db
-        .selectFrom("User")
-        .selectAll()
-        .where("User.id", "=", event.creatorId)
-        .select((eb) => [
           jsonArrayFrom(
-            eb
+            b
               .selectFrom("UserUserPivot")
-              .select("UserUserPivot.followerId")
-              .whereRef("UserUserPivot.userId", "=", "User.id")
-          ).as("recievedFollows"),
+              .select("followerId")
+              .whereRef("UserUserPivot.userId", "=", "Event.creatorId")
+          ).as("creatorFollowers"),
         ])
-        .executeTakeFirst();
+        .executeTakeFirstOrThrow();
 
+      const followerIds = event.creatorFollowers.map(
+        (follower) => follower.followerId
+      );
 
-      //const result = await fcm.sendNotification({...body, token: fcmToken.id});
+      const followersFcmTokens = await db
+        .selectFrom("FcmToken")
+        .selectAll()
+        .where("FcmToken.userId", "in", followerIds)
+        .execute();
 
-      const notifications = user.fcmTokens.map((fcmToken) => ({
-        ...body,
-        imageUrl: undefined, //may or may not send an extra image in notification
-        token: fcmToken.id,
-      }));
+      const notifications: Notification[] = followersFcmTokens.map(
+        (fcmToken) => ({
+          title: `howl by ${event.creator.name}`,
+          body: `what: ${event.what}`,
+          linkUrl: `https://howler.andyfx.net/event/${hashidFromId(event.id)}`,
+          imageUrl: undefined, //may or may not send an extra image in notification
+          token: fcmToken.id,
+        })
+      );
       const batchResponse = await fcm.sendNotifications(notifications);
-
-      for (const response of batchResponse.responses) {
-        if (!response.success) {
-          const code = response.error?.code; //guaranteed to exist when response.success is false
-          if (!code) {
-            console.log("fcm.send() response error (no code)");
-            continue;
-          }
-          if (
-            [
-              FIREBASE_MESSAGING_ERROR_CODES.INVALID_ARGUMENT,
-              FIREBASE_MESSAGING_ERROR_CODES.INVALID_PAYLOAD,
-            ].includes(code)
-          ) {
-            console.log(
-              "fcm.send() response error (there is prob an issue with the payload we sent), error:",
-              response.error
-            );
-          } else if (
-            [
-              FIREBASE_MESSAGING_ERROR_CODES.REGISTRATION_TOKEN_NOT_REGISTERED,
-              FIREBASE_MESSAGING_ERROR_CODES.INVALID_RECIPIENT,
-            ].includes(code)
-          ) {
-            console.log(
-              "fcm.send() response error (fcmToken is probably stale, should remove it from db). error:",
-              response.error
-            );
-            //TODO: remove any stale/invalid tokens
-          } else {
-            console.log(
-              "fcm.send() response error (I didnt check for this error explicitly). error:",
-              response.error
-            );
-          }
-        }
-      }
-
-      return { message: batchResponse };
-
-      */
+      consolelogBatchresponseResult(batchResponse);
     } catch (error) {
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
@@ -306,6 +219,45 @@ async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
     console.log("compiledQuery analyzed:", explainAnalyzeResult);
   } catch (error) {
     console.log("error:", error);
+  }
+}
+
+function consolelogBatchresponseResult(batchResponse: BatchResponse) {
+  for (const response of batchResponse.responses) {
+    if (!response.success) {
+      const code = response.error?.code; //guaranteed to exist when response.success is false
+      if (!code) {
+        console.log("fcm.send() response error (no code)");
+        continue;
+      }
+      if (
+        [
+          FIREBASE_MESSAGING_ERROR_CODES.INVALID_ARGUMENT,
+          FIREBASE_MESSAGING_ERROR_CODES.INVALID_PAYLOAD,
+        ].includes(code)
+      ) {
+        console.log(
+          "fcm.send() response error (there is prob an issue with the payload we sent), error:",
+          response.error
+        );
+      } else if (
+        [
+          FIREBASE_MESSAGING_ERROR_CODES.REGISTRATION_TOKEN_NOT_REGISTERED,
+          FIREBASE_MESSAGING_ERROR_CODES.INVALID_RECIPIENT,
+        ].includes(code)
+      ) {
+        console.log(
+          "fcm.send() response error (fcmToken is probably stale, should remove it from db). error:",
+          response.error
+        );
+        //TODO: remove any stale/invalid tokens
+      } else {
+        console.log(
+          "fcm.send() response error (I didnt check for this error explicitly). error:",
+          response.error
+        );
+      }
+    }
   }
 }
 

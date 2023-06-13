@@ -8,6 +8,7 @@ import { z } from "zod";
  * its only purpose is to type the global process.env
  */
 export const envSchema = z.object({
+  HASHIDS_SALT: z.string(),
   DATABASE_URL: z.string(),
   API_PORT: z.string(),
   HOWLER_FIREBASE_ADMIN_PROJECT_ID: z.string(),

@@ -7,7 +7,7 @@ import type {
   //ConditionMessage,
 } from "firebase-admin/messaging";
 
-type Notification = {
+export type Notification = {
   token: string;
   title: string;
   body: string;

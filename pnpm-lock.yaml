@@ -9,6 +9,7 @@ specifiers:
   eslint: ^8.39.0
   fastify: ^4.17.0
   firebase-admin: ^11.8.0
+  hashids: ^2.3.0
   kysely: ^0.24.2
   mysql2: ^3.3.0
   superjson: ^1.12.3
@@ -20,6 +21,7 @@ dependencies:
   dotenv: 16.0.3
   fastify: 4.17.0
   firebase-admin: 11.8.0
+  hashids: 2.3.0
   kysely: 0.24.2
   mysql2: 3.3.0
   superjson: 1.12.3
@@ -1448,6 +1450,10 @@ packages:
   /has-flag/4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
+
+  /hashids/2.3.0:
+    resolution: {integrity: sha512-ljM73TE/avEhNnazxaj0Dw3BbEUuLC5yYCQ9RSkSUcT4ZSU6ZebdKCIBJ+xT/DnSYW36E9k82GH1Q6MydSIosQ==}
+    dev: false
 
   /http-parser-js/0.5.8:
     resolution: {integrity: sha512-SGeBX54F94Wgu5RH3X5jsDtf4eHyRogWX1XGT3b4HuW3tQPM4AaBzoUji/4AAJNXCEOWZ5O0DgZmJw1947gD5Q==}
