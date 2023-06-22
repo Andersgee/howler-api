@@ -1,7 +1,7 @@
 import "dotenv/config";
 import "./validate-process-env";
 import { type CompiledQuery } from "kysely";
-import { serialize } from "superjson";
+//import { serialize } from "superjson";
 import Fastify from "fastify";
 import { fcm, type Notification } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";
@@ -10,6 +10,7 @@ import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/mysql";
 import cors from "@fastify/cors";
 import type { BatchResponse } from "firebase-admin/messaging";
 import { hashidFromId } from "./hashid";
+import { stringify } from "devalue";
 
 /*
 notes to self:
@@ -26,6 +27,31 @@ console.log("registering cors");
 await server.register(cors, {
   // put your options here
 });
+
+/*
+async function debuginsertdate() {
+  const when = new Date();
+  const whenEnd = new Date();
+  const values = {
+    creatorId: 1,
+    what: "debugdate",
+    where: "debugdate",
+    when: when,
+    whenEnd: whenEnd,
+    who: "debugdate",
+    info: "no info",
+  };
+  console.log("before execute debugdate");
+  const insertresult = await db
+    .insertInto("Event")
+    .values(values)
+    .executeTakeFirstOrThrow();
+  console.log("after execute debugdate");
+  console.log("insertresult", insertresult);
+}
+
+await debuginsertdate();
+*/
 
 server.addHook("onRequest", async (request) => {
   if (request.headers.authorization !== process.env.AUTH_SECRET) {
@@ -44,12 +70,12 @@ server.route<{ Querystring: { q: string } }>({
     const compiledQuery = parseCompiledQuery(request.query.q);
     if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-    if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
-      await consolelogExplainAnalyzeResult(compiledQuery);
-    }
+    //if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
+    //  await consolelogExplainAnalyzeResult(compiledQuery);
+    //}
 
     const result = await db.executeQuery(compiledQuery);
-    return serialize(result);
+    return stringify(result);
   },
 });
 
@@ -57,15 +83,27 @@ server.route({
   method: "POST",
   url: "/",
   handler: async (request, _reply) => {
-    const compiledQuery = parseCompiledQuery(request.body);
-    if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
+    try {
+      console.log("/POST, request.body:", request.body);
 
-    if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
-      await consolelogExplainAnalyzeResult(compiledQuery);
+      const compiledQuery = parseCompiledQuery(request.body);
+      console.log("/POST, compiledQuery:", compiledQuery);
+
+      compiledQuery?.parameters.forEach((p, i) => {
+        console.log("paramater", i, "typeof p:", typeof p);
+      });
+
+      if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
+
+      //if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
+      //  await consolelogExplainAnalyzeResult(compiledQuery);
+      //}
+
+      const result = await db.executeQuery(compiledQuery);
+      return stringify(result);
+    } catch (error) {
+      console.log(error);
     }
-
-    const result = await db.executeQuery(compiledQuery);
-    return serialize(result);
   },
 });
 
@@ -185,6 +223,21 @@ server.route<{
         .selectAll()
         .where("FcmToken.userId", "in", followerIds)
         .execute();
+
+      /*
+      //another way to get list of tokens directly:
+      const followersFcmTokens = await db
+        .selectFrom("FcmToken")
+        .selectAll()
+        .where("FcmToken.userId", "in", (eb) =>
+          eb
+            .selectFrom("Event as e")
+            .innerJoin("UserUserPivot as u", "u.userId", "e.creatorId")
+            .where("e.id", "=", body.eventId)
+            .select("u.followerId")
+        )
+        .execute();
+      */
 
       const notifications: Notification[] = followersFcmTokens.map(
         (fcmToken) => ({
