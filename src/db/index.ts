@@ -1,12 +1,9 @@
 import { Kysely, MysqlDialect, type CompiledQuery } from "kysely";
 import type { DB } from "./types";
 import { createPool } from "mysql2";
-//import { deserialize } from "superjson";
 import { parse } from "devalue";
-//import { type SuperJSONResult } from "superjson/dist/types";
 
-//
-//cant pass connection url to createPool for some reason? so split it
+//split connection url into individual variables for createPool
 const [, , , user, password, host, port, database] =
   process.env.DATABASE_URL.split(/:|\/|@/);
 

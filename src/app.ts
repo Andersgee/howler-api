@@ -1,7 +1,6 @@
 import "dotenv/config";
 import "./validate-process-env";
 import { type CompiledQuery } from "kysely";
-//import { serialize } from "superjson";
 import Fastify from "fastify";
 import { fcm, type Notification } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";

@@ -13,7 +13,6 @@ specifiers:
   hashids: ^2.3.0
   kysely: ^0.24.2
   mysql2: ^3.3.0
-  superjson: ^1.12.3
   typescript: ^5.0.4
   zod: ^3.21.4
 
@@ -26,7 +25,6 @@ dependencies:
   hashids: 2.3.0
   kysely: 0.24.2
   mysql2: 3.3.0
-  superjson: 1.12.3
   zod: 3.21.4
 
 devDependencies:
@@ -857,13 +855,6 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /copy-anything/3.0.4:
-    resolution: {integrity: sha512-MaQ9FwzlZ/KLeVCLhzI3rZw0EhrIryfZa3AyT4agVybR0DjlkDHA8898lamLD6kfkf9MMn8D+zDAUR4+GxaymQ==}
-    engines: {node: '>=12.13'}
-    dependencies:
-      is-what: 4.1.9
-    dev: false
-
   /cross-spawn/7.0.3:
     resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
     engines: {node: '>= 8'}
@@ -1573,11 +1564,6 @@ packages:
     engines: {node: '>=8'}
     dev: false
     optional: true
-
-  /is-what/4.1.9:
-    resolution: {integrity: sha512-I3FU0rkVvwhgLLEs6iITwZ/JaLXe7tQcHyzupXky8jigt1vu4KM0UOqDr963j36JRvJ835EATVIm6MnGz/i1/g==}
-    engines: {node: '>=12.13'}
-    dev: false
 
   /isexe/2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
@@ -2384,13 +2370,6 @@ packages:
     resolution: {integrity: sha512-PdHt7hHUJKxvTCgbKX9C1V/ftOcjJQgz8BZwNfV5c4B6dcGqlpelTbJ999jBGZ2jYiPAwcX5dP6oBwVlBlUbxw==}
     dev: false
     optional: true
-
-  /superjson/1.12.3:
-    resolution: {integrity: sha512-0j+U70KUtP8+roVPbwfqkyQI7lBt7ETnuA7KXbTDX3mCKiD/4fXs2ldKSMdt0MCfpTwiMxo20yFU3vu6ewETpQ==}
-    engines: {node: '>=10'}
-    dependencies:
-      copy-anything: 3.0.4
-    dev: false
 
   /supports-color/7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}

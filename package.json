@@ -26,7 +26,6 @@
     "hashids": "^2.3.0",
     "kysely": "^0.24.2",
     "mysql2": "^3.3.0",
-    "superjson": "^1.12.3",
     "zod": "^3.21.4"
   },
   "devDependencies": {
