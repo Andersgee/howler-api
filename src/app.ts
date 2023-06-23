@@ -70,9 +70,9 @@ server.route<{ Querystring: { q: string } }>({
     const compiledQuery = parseCompiledQuery(request.query.q);
     if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-    //if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
-    //  await consolelogExplainAnalyzeResult(compiledQuery);
-    //}
+    if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
+      await consolelogExplainAnalyzeResult(compiledQuery);
+    }
 
     const result = await db.executeQuery(compiledQuery);
     return stringify(result);
@@ -83,27 +83,15 @@ server.route({
   method: "POST",
   url: "/",
   handler: async (request, _reply) => {
-    try {
-      console.log("/POST, request.body:", request.body);
+    const compiledQuery = parseCompiledQuery(request.body);
+    if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
-      const compiledQuery = parseCompiledQuery(request.body);
-      console.log("/POST, compiledQuery:", compiledQuery);
+    //if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
+    //  await consolelogExplainAnalyzeResult(compiledQuery);
+    //}
 
-      compiledQuery?.parameters.forEach((p, i) => {
-        console.log("paramater", i, "typeof p:", typeof p);
-      });
-
-      if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
-
-      //if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
-      //  await consolelogExplainAnalyzeResult(compiledQuery);
-      //}
-
-      const result = await db.executeQuery(compiledQuery);
-      return stringify(result);
-    } catch (error) {
-      console.log(error);
-    }
+    const result = await db.executeQuery(compiledQuery);
+    return stringify(result);
   },
 });
 
