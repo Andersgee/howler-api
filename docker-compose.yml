@@ -1,9 +1,9 @@
 version: "3.8"
 
-# note:
-#"ports SOME_PUBLICPORT:SOME_INTERNALPORT" sets up a forwarding from host (aka ouside world) to internal docker network
-#"expose SOME_INTERNALPORT" is apparently only for documentation / metadata on the container. set this to the port that the service is using.
-# also communicate between services with protocol://servicename:INTERNALPORT eg http://api:3002 or mysql://someusername:somepassword@db:3306/db
+# notes:
+# "ports SOME_PUBLICPORT:SOME_INTERNALPORT" sets up a forwarding from host (aka ouside world) to internal docker network
+# "expose SOME_INTERNALPORT" is only for documentation / metadata on the container. set this to the port that the service is using.
+# communicate between services with protocol://servicename:INTERNALPORT eg http://api:3002 or mysql://someusername:somepassword@db:3306/db
 
 services:
   db:
