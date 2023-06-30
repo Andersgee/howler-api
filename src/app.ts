@@ -2,7 +2,7 @@ import "dotenv/config";
 import "./validate-process-env";
 import { type CompiledQuery } from "kysely";
 import Fastify from "fastify";
-import { fcm, type Notification } from "./firebase-cloud-messaging";
+import { fcm, type NotificationData } from "./firebase-cloud-messaging";
 import { db, parseCompiledQuery } from "./db";
 import { FIREBASE_MESSAGING_ERROR_CODES, errorMessage } from "./utils";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/mysql";
@@ -100,6 +100,7 @@ server.route({
 // Notifications (firebase cloud messaging) //
 //////////////////////////////////////////////
 
+/*
 type NotifyBody = {
   userId: number;
   title: string;
@@ -148,11 +149,13 @@ server.route<{ Body: NotifyBody }>({
         );
       }
 
-      const notifications: Notification[] = user.fcmTokens.map((fcmToken) => ({
-        ...body,
-        imageUrl: undefined, //may or may not send an extra image in notification
-        token: fcmToken.id,
-      }));
+      const notifications: NotificationData[] = user.fcmTokens.map(
+        (fcmToken) => ({
+          ...body,
+          imageUrl: undefined, //may or may not send an extra image in notification
+          token: fcmToken.id,
+        })
+      );
       const batchResponse = await fcm.sendNotifications(notifications);
       consolelogBatchresponseResult(batchResponse);
 
@@ -162,6 +165,7 @@ server.route<{ Body: NotifyBody }>({
     }
   },
 });
+*/
 
 server.route<{
   Body: {
@@ -228,17 +232,51 @@ server.route<{
         .execute();
       */
 
-      const notifications: Notification[] = followersFcmTokens.map(
-        (fcmToken) => ({
-          title: `howl by ${event.creator.name}`,
-          body: `what: ${event.what}`,
-          linkUrl: `https://howler.andyfx.net/event/${hashidFromId(event.id)}`,
-          imageUrl: undefined, //may or may not send an extra image in notification
-          token: fcmToken.id,
-        })
+      const notifications = followersFcmTokens.map((fcmToken) => {
+        const data: { notificationData: NotificationData; userId: number } = {
+          userId: fcmToken.userId,
+          notificationData: {
+            title: `howl by ${event.creator.name}`,
+            body: `what: ${event.what}`,
+            linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
+              event.id
+            )}`,
+            relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
+            imageUrl: undefined, //may or may not send an extra image in notification
+            fcmToken: fcmToken.id,
+          },
+        };
+        return data;
+      });
+
+      const batchResponse = await fcm.sendNotifications(
+        notifications.map((x) => x.notificationData)
       );
-      const batchResponse = await fcm.sendNotifications(notifications);
       consolelogBatchresponseResult(batchResponse);
+
+      //save delivered notifications to db,
+      //note: only save 1 of the delivered notifications per user (a user can have multiple fcmTokens, for multiple devices
+      const uniqueUserIds = new Set<number>();
+      const deliveredNotifications = notifications.filter((x, i) => {
+        if (
+          !batchResponse.responses[i].success ||
+          uniqueUserIds.has(x.userId)
+        ) {
+          return false;
+        } else {
+          uniqueUserIds.add(x.userId);
+          return true;
+        }
+      });
+
+      const insertValues = deliveredNotifications.map((x) => ({
+        userId: x.userId,
+        data: stringify(x),
+      }));
+      const insertResult = await db
+        .insertInto("Notification")
+        .values(insertValues)
+        .execute();
     } catch (error) {
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }

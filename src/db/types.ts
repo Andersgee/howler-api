@@ -25,6 +25,11 @@ export type FcmToken = {
   createdAt: Generated<Timestamp>;
   userId: number;
 };
+export type Notification = {
+  id: Generated<number>;
+  data: string;
+  userId: number;
+};
 export type Place = {
   id: Generated<number>;
   label: string;
@@ -53,6 +58,7 @@ export type DB = {
   Event: Event;
   Example: Example;
   FcmToken: FcmToken;
+  Notification: Notification;
   Place: Place;
   User: User;
   UserEventPivot: UserEventPivot;

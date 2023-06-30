@@ -1,18 +1,19 @@
 import admin from "firebase-admin";
 import { type Messaging, getMessaging } from "firebase-admin/messaging";
 import type {
-  BaseMessage,
+  //BaseMessage,
   TokenMessage,
   TopicMessage,
   //ConditionMessage,
 } from "firebase-admin/messaging";
 
-export type Notification = {
-  token: string;
+export type NotificationData = {
+  fcmToken: string;
   title: string;
   body: string;
   imageUrl?: string;
   linkUrl: string;
+  relativeLinkUrl: string;
 };
 
 /** simpler wrapper for interacting with Firebase cloud messaging service */
@@ -32,13 +33,15 @@ class FirebaseCloudMessaging {
     this.messaging = getMessaging(this.app);
   }
 
-  async sendNotification(notification: Notification) {
-    const message = createTokenMessage(notification);
+  async sendNotification(notification: NotificationData) {
+    const message = createTokenMessage(notification, notification.fcmToken);
     return this.messaging.send(message);
   }
 
-  async sendNotifications(notifications: Notification[]) {
-    const messages = notifications.map(createTokenMessage);
+  async sendNotifications(notifications: NotificationData[]) {
+    const messages = notifications.map((notification) =>
+      createTokenMessage(notification, notification.fcmToken)
+    );
     return this.messaging.sendEach(messages);
   }
 
@@ -57,12 +60,6 @@ class FirebaseCloudMessaging {
 
 export const fcm = new FirebaseCloudMessaging();
 
-function createTokenMessage(message: Notification) {
-  const payload = createBaseMessage(message) as TokenMessage;
-  payload.token = message.token;
-  return payload;
-}
-
 /**
  * some examples of what all the keys in a Message does:
  * https://firebase.google.com/docs/cloud-messaging/send-message#example-notification-message-with-platform-specific-delivery-options
@@ -72,12 +69,14 @@ function createTokenMessage(message: Notification) {
  *
  * "link" options: https://firebase.google.com/docs/cloud-messaging/js/topic-messaging#setting_notification_options_in_the_send_request
  *
- * TLDR; only `notification.title` and `notification.body` is considered platform independent
- * everything else like `android`, `apns` and `webpush` config objects configures how firebase messaging service adjusts the message before sending it depending on device.
+ * TLDR;
+ *  - only `notification.title` and `notification.body` is considered platform independent
+ *  - everything else like `android`, `apns` and `webpush` config objects configures how firebase messaging service adjusts the message before sending it depending on device.
+ *  - if only sending data, then its not a notification, its just a regular web push
  */
-function createBaseMessage(message: Notification) {
-  const payload: BaseMessage = {
-    //token: message.token,
+function createTokenMessage(message: NotificationData, fcmToken: string) {
+  const payload: TokenMessage = {
+    token: fcmToken,
     notification: {
       title: message.title,
       body: message.body,
@@ -92,6 +91,7 @@ function createBaseMessage(message: Notification) {
         link: message.linkUrl,
       },
     },
+    data: message, //
     /*
     android: {
       notification: {
