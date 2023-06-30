@@ -219,7 +219,7 @@ server.route<{
         .execute();
 
       /*
-      //another way to get list of tokens directly:
+      //another way to get list of tokens directly, not sure if actually faster
       const followersFcmTokens = await db
         .selectFrom("FcmToken")
         .selectAll()
