@@ -42,7 +42,6 @@ class FirebaseCloudMessaging {
     const messages = notifications.map((notification) =>
       createTokenMessage(notification, notification.fcmToken)
     );
-    console.log("sendEach messages:", messages);
     return this.messaging.sendEach(messages);
   }
 
