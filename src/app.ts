@@ -184,6 +184,7 @@ server.route<{
     },
   },
   handler: async (request, _reply) => {
+    console.log("handling POST /notifyeventcreated");
     try {
       const body = request.body;
 
@@ -233,25 +234,24 @@ server.route<{
       */
 
       const notifications = followersFcmTokens.map((fcmToken) => {
-        const data: { notificationData: NotificationData; userId: number } = {
+        const notification: { data: NotificationData; userId: number } = {
           userId: fcmToken.userId,
-          notificationData: {
+          data: {
             title: `howl by ${event.creator.name}`,
             body: `what: ${event.what}`,
             linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
               event.id
             )}`,
             relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
-            imageUrl: undefined, //may or may not send an extra image in notification
+            //imageUrl: undefined, //may or may not send an extra image in notification
             fcmToken: fcmToken.id,
           },
         };
-        return data;
+        return notification;
       });
 
-      const batchResponse = await fcm.sendNotifications(
-        notifications.map((x) => x.notificationData)
-      );
+      const messages = notifications.map((x) => x.data);
+      const batchResponse = await fcm.sendNotifications(messages);
       consolelogBatchresponseResult(batchResponse);
 
       //save delivered notifications to db,
@@ -271,13 +271,14 @@ server.route<{
 
       const insertValues = deliveredNotifications.map((x) => ({
         userId: x.userId,
-        data: stringify(x),
+        data: stringify(x.data),
       }));
       const insertResult = await db
         .insertInto("Notification")
         .values(insertValues)
         .execute();
     } catch (error) {
+      console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
@@ -331,6 +332,7 @@ function consolelogBatchresponseResult(batchResponse: BatchResponse) {
           response.error
         );
         //TODO: remove any stale/invalid tokens
+        //see best practises https://firebase.google.com/docs/cloud-messaging/manage-tokens
       } else {
         console.log(
           "fcm.send() response error (I didnt check for this error explicitly). error:",

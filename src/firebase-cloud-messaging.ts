@@ -11,12 +11,12 @@ export type NotificationData = {
   fcmToken: string;
   title: string;
   body: string;
-  imageUrl?: string;
+  //imageUrl?: string;
   linkUrl: string;
   relativeLinkUrl: string;
 };
 
-/** simpler wrapper for interacting with Firebase cloud messaging service */
+/**  simpler wrapper for interacting with Firebase cloud messaging service */
 class FirebaseCloudMessaging {
   app: admin.app.App;
   messaging: Messaging;
@@ -42,6 +42,7 @@ class FirebaseCloudMessaging {
     const messages = notifications.map((notification) =>
       createTokenMessage(notification, notification.fcmToken)
     );
+    console.log("sendEach messages:", messages);
     return this.messaging.sendEach(messages);
   }
 
@@ -80,13 +81,13 @@ function createTokenMessage(message: NotificationData, fcmToken: string) {
     notification: {
       title: message.title,
       body: message.body,
-      imageUrl: message.imageUrl,
+      //imageUrl: message.imageUrl,
     },
     webpush: {
       notification: {
         icon: "/icons/favicon-48x48.png",
       },
-      headers: message.imageUrl ? { image: message.imageUrl } : undefined,
+      //headers: message.imageUrl ? { image: message.imageUrl } : undefined,
       fcmOptions: {
         link: message.linkUrl,
       },
