@@ -1,9 +1,14 @@
 import "dotenv/config";
 import "./validate-process-env";
-import { type CompiledQuery } from "kysely";
+import { type InsertObject, type CompiledQuery } from "kysely";
 import Fastify from "fastify";
-import { fcm, type NotificationData } from "./firebase-cloud-messaging";
+import { fcm } from "./firebase-cloud-messaging";
+import type {
+  ChatMessageData,
+  NotificationMessageData,
+} from "./message-schema";
 import { db, parseCompiledQuery } from "./db";
+import type { DB } from "./db/types";
 import { FIREBASE_MESSAGING_ERROR_CODES, errorMessage } from "./utils";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/mysql";
 import cors from "@fastify/cors";
@@ -26,6 +31,16 @@ console.log("registering cors");
 await server.register(cors, {
   // put your options here
 });
+
+async function fcmTokensFromUserIds(userIds: number[]) {
+  const fcmTokens = await db
+    .selectFrom("FcmToken")
+    .select("id")
+    .where("userId", "in", userIds)
+    .execute();
+
+  return fcmTokens.map((t) => t.id);
+}
 
 /*
 async function debuginsertdate() {
@@ -100,72 +115,77 @@ server.route({
 // Notifications (firebase cloud messaging) //
 //////////////////////////////////////////////
 
-/*
-type NotifyBody = {
-  userId: number;
-  title: string;
-  body: string;
-  linkUrl: string;
-};
-
-server.route<{ Body: NotifyBody }>({
+server.route<{
+  Body: {
+    eventId: number;
+    userId: number;
+    text: string;
+  };
+}>({
   method: "POST",
-  url: "/notify",
+  url: "/chat",
   schema: {
     body: {
       type: "object",
-      required: ["userId", "title", "body", "linkUrl"],
+      required: ["eventId", "userId", "text"],
       properties: {
+        eventId: { type: "number" },
         userId: { type: "number" },
-        title: { type: "string" },
-        body: { type: "string" },
-        linkUrl: { type: "string" },
+        text: { type: "string" },
       },
     },
   },
   handler: async (request, _reply) => {
+    console.log("handling POST /chat");
     try {
-      const body = request.body;
+      const input = request.body;
 
-      const user = await db
-        .selectFrom("User")
-        .select("User.name")
-        .where("User.id", "=", body.userId)
-        .select((eb) => [
-          jsonArrayFrom(
-            eb
-              .selectFrom("FcmToken")
-              .select("FcmToken.id")
-              .whereRef("FcmToken.userId", "=", "User.id")
-          ).as("fcmTokens"),
-        ])
-        .executeTakeFirst();
+      const users = await db
+        .selectFrom("UserEventchatPivot")
+        .select("userId")
+        .where("UserEventchatPivot.eventchatId", "=", input.eventId)
+        .execute();
+      const userIds = users.map((user) => user.userId);
 
-      if (!user) return errorMessage("CLIENTERROR_BAD_REQUEST", "no user");
-      if (user.fcmTokens.length < 1) {
-        return errorMessage(
-          "CLIENTERROR_CONFLICT",
-          `userId: ${body.userId} has no fcmTokens to send to`
-        );
-      }
-
-      const notifications: NotificationData[] = user.fcmTokens.map(
-        (fcmToken) => ({
-          ...body,
-          imageUrl: undefined, //may or may not send an extra image in notification
-          token: fcmToken.id,
+      /*
+      const fcmTokensResult = await db
+        .selectFrom("FcmToken")
+        .select("id")
+        .where("userId", "in", userIds)
+        .execute();
+      const fcmTokens = fcmTokensResult.map((t) => t.id);
+*/
+      const insertResult = await db
+        .insertInto("Eventchatmessage")
+        .values({
+          eventchatId: input.eventId,
+          userId: input.userId,
+          text: input.text,
         })
-      );
-      const batchResponse = await fcm.sendNotifications(notifications);
-      consolelogBatchresponseResult(batchResponse);
+        .executeTakeFirstOrThrow();
 
-      return { message: batchResponse };
+      const insertId = Number(insertResult.insertId); //will be NaN if insertResult.insertId is undefined
+
+      const eventchatmessage = await db
+        .selectFrom("Eventchatmessage")
+        .selectAll()
+        .where("id", "=", insertId)
+        .executeTakeFirstOrThrow();
+
+      const data: ChatMessageData = {
+        type: "chat",
+        ...eventchatmessage,
+      };
+
+      const fcmTokens = await fcmTokensFromUserIds(userIds);
+
+      await fcm.sendChatmessage(data, fcmTokens);
     } catch (error) {
+      console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
 });
-*/
 
 server.route<{
   Body: {
@@ -219,34 +239,34 @@ server.route<{
         .execute();
 
       /*
-      //another way to get list of tokens directly, not sure if actually faster
-      const followersFcmTokens = await db
-        .selectFrom("FcmToken")
-        .selectAll()
-        .where("FcmToken.userId", "in", (eb) =>
-          eb
-            .selectFrom("Event as e")
-            .innerJoin("UserUserPivot as u", "u.userId", "e.creatorId")
-            .where("e.id", "=", body.eventId)
-            .select("u.followerId")
-        )
-        .execute();
-      */
-
+        const data:NotificationMessageData = {
+          type: "notification",
+          title: `howl by ${event.creator.name}`,
+              body: `what: ${event.what}`,
+              linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
+                event.id
+              )}`,
+              relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
+              //imageUrl: undefined, //may or may not send an extra image in notification
+              fcmToken: fcmToken.id,
+        }
+        */
       const notifications = followersFcmTokens.map((fcmToken) => {
-        const notification: { data: NotificationData; userId: number } = {
-          userId: fcmToken.userId,
-          data: {
-            title: `howl by ${event.creator.name}`,
-            body: `what: ${event.what}`,
-            linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
-              event.id
-            )}`,
-            relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
-            //imageUrl: undefined, //may or may not send an extra image in notification
-            fcmToken: fcmToken.id,
-          },
-        };
+        const notification: { userId: number; data: NotificationMessageData } =
+          {
+            userId: fcmToken.userId,
+            data: {
+              type: "notification",
+              title: `howl by ${event.creator.name}`,
+              body: `what: ${event.what}`,
+              linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
+                event.id
+              )}`,
+              relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
+              //imageUrl: undefined, //may or may not send an extra image in notification
+              fcmToken: fcmToken.id,
+            },
+          };
         return notification;
       });
 
@@ -257,23 +277,24 @@ server.route<{
       //save delivered notifications to db,
       //note: only save 1 of the delivered notifications per user (a user can have multiple fcmTokens, for multiple devices
       const uniqueUserIds = new Set<number>();
-      const deliveredNotifications = notifications.filter((x, i) => {
+      const insertValues: InsertObject<DB, "Notification">[] = [];
+      notifications.forEach((x, i) => {
         if (
-          !batchResponse.responses[i].success ||
-          uniqueUserIds.has(x.userId)
+          batchResponse.responses[i].success &&
+          !uniqueUserIds.has(x.userId)
         ) {
-          return false;
-        } else {
           uniqueUserIds.add(x.userId);
+          insertValues.push({
+            userId: x.userId,
+            data: stringify(x.data),
+          });
           return true;
+        } else {
+          return false;
         }
       });
 
-      const insertValues = deliveredNotifications.map((x) => ({
-        userId: x.userId,
-        data: stringify(x.data),
-      }));
-      const insertResult = await db
+      const _insertResult = await db
         .insertInto("Notification")
         .values(insertValues)
         .execute();
@@ -290,10 +311,17 @@ server.route<{
 
 async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
   console.log("compiledQuery:", compiledQuery.sql);
+  if (
+    compiledQuery.sql.startsWith("SHOW") ||
+    compiledQuery.sql.startsWith("DESCRIBE")
+  ) {
+    return;
+  }
   try {
     //https://dev.mysql.com/doc/refman/8.0/en/explain.html#explain-analyze
     const debugQuery = {
-      sql: "EXPLAIN ANALYZE " + compiledQuery.sql,
+      //sql: "EXPLAIN ANALYZE " + compiledQuery.sql,
+      sql: "EXPLAIN " + compiledQuery.sql,
       parameters: compiledQuery.parameters,
     } as CompiledQuery;
     const explainAnalyzeResult = await db.executeQuery(debugQuery);

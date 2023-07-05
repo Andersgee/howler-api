@@ -15,6 +15,16 @@ export type Event = {
   info: string;
   placeId: number | null;
 };
+export type Eventchat = {
+  id: number;
+};
+export type Eventchatmessage = {
+  id: Generated<number>;
+  createdAt: Generated<Timestamp>;
+  text: string;
+  eventchatId: number;
+  userId: number;
+};
 export type Example = {
   id: Generated<number>;
   createdAt: Generated<Timestamp>;
@@ -45,6 +55,10 @@ export type User = {
   image: string | null;
   name: string;
 };
+export type UserEventchatPivot = {
+  userId: number;
+  eventchatId: number;
+};
 export type UserEventPivot = {
   userId: number;
   eventId: number;
@@ -56,11 +70,14 @@ export type UserUserPivot = {
 };
 export type DB = {
   Event: Event;
+  Eventchat: Eventchat;
+  Eventchatmessage: Eventchatmessage;
   Example: Example;
   FcmToken: FcmToken;
   Notification: Notification;
   Place: Place;
   User: User;
+  UserEventchatPivot: UserEventchatPivot;
   UserEventPivot: UserEventPivot;
   UserUserPivot: UserUserPivot;
 };
