@@ -241,12 +241,15 @@ server.route<{
       const userIds = event.creatorFollowers.map(
         (follower) => follower.followerId
       );
-      await db.insertInto("UserNotificationPivot").values(
-        userIds.map((userId) => ({
-          notificationId: insertId,
-          userId,
-        }))
-      );
+      await db
+        .insertInto("UserNotificationPivot")
+        .values(
+          userIds.map((userId) => ({
+            notificationId: insertId,
+            userId,
+          }))
+        )
+        .execute();
 
       //grab saved data
       const notification = await db
