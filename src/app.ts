@@ -140,6 +140,7 @@ server.route<{
     try {
       const input = request.body;
 
+      //save to db
       const insertResult = await db
         .insertInto("Eventchatmessage")
         .values({
@@ -150,6 +151,14 @@ server.route<{
         .executeTakeFirstOrThrow();
       const insertId = Number(insertResult.insertId);
 
+      //grab saved data
+      const eventchatmessage = await db
+        .selectFrom("Eventchatmessage")
+        .selectAll()
+        .where("id", "=", insertId)
+        .executeTakeFirstOrThrow();
+
+      //get userIds
       const users = await db
         .selectFrom("UserEventchatPivot")
         .select("userId")
@@ -157,19 +166,15 @@ server.route<{
         .execute();
       const userIds = users.map((user) => user.userId);
 
-      const eventchatmessage = await db
-        .selectFrom("Eventchatmessage")
-        .selectAll()
-        .where("id", "=", insertId)
-        .executeTakeFirstOrThrow();
-
+      //push it to users
       const data: ChatMessageData = {
         type: "chat",
         ...eventchatmessage,
       };
-
       const fcmTokens = await fcmTokensFromUserIds(userIds);
       const batchResponse = await fcm.sendChatmessage(data, fcmTokens);
+
+      //debug: analyze response, todo: remove stale fcmTokens from db
       consolelogBatchresponseResult(batchResponse);
     } catch (error) {
       console.log("error:", error);
@@ -199,6 +204,7 @@ server.route<{
     try {
       const body = request.body;
 
+      //get event info
       const event = await db
         .selectFrom("Event")
         .selectAll("Event")
@@ -219,32 +225,45 @@ server.route<{
         ])
         .executeTakeFirstOrThrow();
 
-      const followerIds = event.creatorFollowers.map(
+      //save to db
+      const insertResult = await db
+        .insertInto("Notification")
+        .values({
+          title: `howl by ${event.creator.name}`,
+          body: `what: ${event.what}`,
+          linkUrl: `https://howler.andyfx.net/event/${hashidFromId(event.id)}`,
+          relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
+        })
+        .executeTakeFirstOrThrow();
+      const insertId = Number(insertResult.insertId);
+
+      //also link it to users
+      const userIds = event.creatorFollowers.map(
         (follower) => follower.followerId
       );
-
-      const data: NotificationMessageData = {
-        type: "notification",
-        title: `howl by ${event.creator.name}`,
-        body: `what: ${event.what}`,
-        linkUrl: `https://howler.andyfx.net/event/${hashidFromId(event.id)}`,
-        relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
-      };
-
-      const insertValues: InsertObject<DB, "Notification">[] = followerIds.map(
-        (userId) => ({
+      await db.insertInto("UserNotificationPivot").values(
+        userIds.map((userId) => ({
+          notificationId: insertId,
           userId,
-          data: stringify(data),
-        })
+        }))
       );
 
-      const _insertResult = await db
-        .insertInto("Notification")
-        .values(insertValues)
-        .execute();
+      //grab saved data
+      const notification = await db
+        .selectFrom("Notification")
+        .selectAll()
+        .where("id", "=", insertId)
+        .executeTakeFirstOrThrow();
 
-      const fcmTokens = await fcmTokensFromUserIds(followerIds);
+      //push it to users
+      const data: NotificationMessageData = {
+        type: "notification",
+        ...notification,
+      };
+      const fcmTokens = await fcmTokensFromUserIds(userIds);
       const batchResponse = await fcm.sendNotifications(data, fcmTokens);
+
+      //debug: analyze response, todo: remove stale fcmTokens from db
       consolelogBatchresponseResult(batchResponse);
     } catch (error) {
       console.log("error:", error);

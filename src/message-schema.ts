@@ -4,10 +4,10 @@ import { stringify } from "devalue";
 
 export const notificationDataSchema = z.object({
   type: z.literal("notification"),
-  //fcmToken: z.string(),
+  id: z.number(),
   title: z.string(),
   body: z.string(),
-  //imageUrl: z.string().optional(),
+  imageUrl: z.string().nullable(),
   linkUrl: z.string(),
   relativeLinkUrl: z.string(),
 });
@@ -54,9 +54,9 @@ export function createNotificatonMessage(
     },
     webpush: {
       notification: {
-        icon: "/icons/favicon-48x48.png",
+        icon: "https://howler.andyfx.net/icons/favicon-48x48.png",
       },
-      //headers: message.imageUrl ? { image: message.imageUrl } : undefined,
+      //headers: data.imageUrl ? { image: data.imageUrl } : undefined,
       fcmOptions: {
         link: data.linkUrl,
       },
@@ -85,6 +85,11 @@ export function createNotificatonMessage(
     },
 */
   };
+
+  if (data.imageUrl && payload.webpush) {
+    payload.webpush.headers = { image: data.imageUrl };
+  }
+
   return payload;
 }
 

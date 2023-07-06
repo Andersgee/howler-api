@@ -37,8 +37,11 @@ export type FcmToken = {
 };
 export type Notification = {
   id: Generated<number>;
-  data: string;
-  userId: number;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  linkUrl: string;
+  relativeLinkUrl: string;
 };
 export type Place = {
   id: Generated<number>;
@@ -64,6 +67,10 @@ export type UserEventPivot = {
   eventId: number;
   joinDate: Generated<Timestamp>;
 };
+export type UserNotificationPivot = {
+  userId: number;
+  notificationId: number;
+};
 export type UserUserPivot = {
   userId: number;
   followerId: number;
@@ -79,5 +86,6 @@ export type DB = {
   User: User;
   UserEventchatPivot: UserEventchatPivot;
   UserEventPivot: UserEventPivot;
+  UserNotificationPivot: UserNotificationPivot;
   UserUserPivot: UserUserPivot;
 };
