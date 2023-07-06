@@ -4,7 +4,7 @@ import { stringify } from "devalue";
 
 export const notificationDataSchema = z.object({
   type: z.literal("notification"),
-  fcmToken: z.string(),
+  //fcmToken: z.string(),
   title: z.string(),
   body: z.string(),
   //imageUrl: z.string().optional(),
@@ -61,7 +61,7 @@ export function createNotificatonMessage(
         link: data.linkUrl,
       },
     },
-    data: { s: stringify(data) }, //
+    data: { str: stringify(data) }, //
     /*
     android: {
       notification: {
@@ -91,7 +91,7 @@ export function createNotificatonMessage(
 export function createDataMessage(data: ChatMessageData, fcmToken: string) {
   const payload: TokenMessage = {
     token: fcmToken,
-    data: { s: stringify(data) },
+    data: { str: stringify(data) },
   };
   return payload;
 }

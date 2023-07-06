@@ -140,21 +140,6 @@ server.route<{
     try {
       const input = request.body;
 
-      const users = await db
-        .selectFrom("UserEventchatPivot")
-        .select("userId")
-        .where("UserEventchatPivot.eventchatId", "=", input.eventId)
-        .execute();
-      const userIds = users.map((user) => user.userId);
-
-      /*
-      const fcmTokensResult = await db
-        .selectFrom("FcmToken")
-        .select("id")
-        .where("userId", "in", userIds)
-        .execute();
-      const fcmTokens = fcmTokensResult.map((t) => t.id);
-*/
       const insertResult = await db
         .insertInto("Eventchatmessage")
         .values({
@@ -163,8 +148,14 @@ server.route<{
           text: input.text,
         })
         .executeTakeFirstOrThrow();
+      const insertId = Number(insertResult.insertId);
 
-      const insertId = Number(insertResult.insertId); //will be NaN if insertResult.insertId is undefined
+      const users = await db
+        .selectFrom("UserEventchatPivot")
+        .select("userId")
+        .where("UserEventchatPivot.eventchatId", "=", input.eventId)
+        .execute();
+      const userIds = users.map((user) => user.userId);
 
       const eventchatmessage = await db
         .selectFrom("Eventchatmessage")
@@ -178,8 +169,8 @@ server.route<{
       };
 
       const fcmTokens = await fcmTokensFromUserIds(userIds);
-
-      await fcm.sendChatmessage(data, fcmTokens);
+      const batchResponse = await fcm.sendChatmessage(data, fcmTokens);
+      consolelogBatchresponseResult(batchResponse);
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
@@ -232,72 +223,29 @@ server.route<{
         (follower) => follower.followerId
       );
 
-      const followersFcmTokens = await db
-        .selectFrom("FcmToken")
-        .selectAll()
-        .where("FcmToken.userId", "in", followerIds)
-        .execute();
+      const data: NotificationMessageData = {
+        type: "notification",
+        title: `howl by ${event.creator.name}`,
+        body: `what: ${event.what}`,
+        linkUrl: `https://howler.andyfx.net/event/${hashidFromId(event.id)}`,
+        relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
+      };
 
-      /*
-        const data:NotificationMessageData = {
-          type: "notification",
-          title: `howl by ${event.creator.name}`,
-              body: `what: ${event.what}`,
-              linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
-                event.id
-              )}`,
-              relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
-              //imageUrl: undefined, //may or may not send an extra image in notification
-              fcmToken: fcmToken.id,
-        }
-        */
-      const notifications = followersFcmTokens.map((fcmToken) => {
-        const notification: { userId: number; data: NotificationMessageData } =
-          {
-            userId: fcmToken.userId,
-            data: {
-              type: "notification",
-              title: `howl by ${event.creator.name}`,
-              body: `what: ${event.what}`,
-              linkUrl: `https://howler.andyfx.net/event/${hashidFromId(
-                event.id
-              )}`,
-              relativeLinkUrl: `/event/${hashidFromId(event.id)}`,
-              //imageUrl: undefined, //may or may not send an extra image in notification
-              fcmToken: fcmToken.id,
-            },
-          };
-        return notification;
-      });
-
-      const messages = notifications.map((x) => x.data);
-      const batchResponse = await fcm.sendNotifications(messages);
-      consolelogBatchresponseResult(batchResponse);
-
-      //save delivered notifications to db,
-      //note: only save 1 of the delivered notifications per user (a user can have multiple fcmTokens, for multiple devices
-      const uniqueUserIds = new Set<number>();
-      const insertValues: InsertObject<DB, "Notification">[] = [];
-      notifications.forEach((x, i) => {
-        if (
-          batchResponse.responses[i].success &&
-          !uniqueUserIds.has(x.userId)
-        ) {
-          uniqueUserIds.add(x.userId);
-          insertValues.push({
-            userId: x.userId,
-            data: stringify(x.data),
-          });
-          return true;
-        } else {
-          return false;
-        }
-      });
+      const insertValues: InsertObject<DB, "Notification">[] = followerIds.map(
+        (userId) => ({
+          userId,
+          data: stringify(data),
+        })
+      );
 
       const _insertResult = await db
         .insertInto("Notification")
         .values(insertValues)
         .execute();
+
+      const fcmTokens = await fcmTokensFromUserIds(followerIds);
+      const batchResponse = await fcm.sendNotifications(data, fcmTokens);
+      consolelogBatchresponseResult(batchResponse);
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");

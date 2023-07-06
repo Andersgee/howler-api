@@ -2,7 +2,7 @@ import admin from "firebase-admin";
 import { type Messaging, getMessaging } from "firebase-admin/messaging";
 import type {
   //BaseMessage,
-  TokenMessage,
+  //TokenMessage,
   TopicMessage,
   //ConditionMessage,
 } from "firebase-admin/messaging";
@@ -30,17 +30,17 @@ class FirebaseCloudMessaging {
     this.messaging = getMessaging(this.app);
   }
 
-  async sendNotification(notification: NotificationMessageData) {
-    const message = createNotificatonMessage(
-      notification,
-      notification.fcmToken
-    );
+  async sendNotification(
+    notification: NotificationMessageData,
+    fcmToken: string
+  ) {
+    const message = createNotificatonMessage(notification, fcmToken);
     return this.messaging.send(message);
   }
 
-  async sendNotifications(notifications: NotificationMessageData[]) {
-    const messages = notifications.map((notification) =>
-      createNotificatonMessage(notification, notification.fcmToken)
+  async sendNotifications(data: NotificationMessageData, fcmTokens: string[]) {
+    const messages = fcmTokens.map((fcmToken) =>
+      createNotificatonMessage(data, fcmToken)
     );
     return this.messaging.sendEach(messages);
   }
