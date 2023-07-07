@@ -11,6 +11,7 @@ import {
   createDataMessage,
   createNotificatonMessage,
   type NotificationMessageData,
+  createChatMessage,
 } from "./message-schema";
 
 /**  simpler wrapper for interacting with Firebase cloud messaging service */
@@ -47,7 +48,7 @@ class FirebaseCloudMessaging {
 
   async sendChatmessage(data: ChatMessageData, fcmTokens: string[]) {
     const messages = fcmTokens.map((fcmToken) =>
-      createDataMessage(data, fcmToken)
+      createChatMessage(data, fcmToken)
     );
     return this.messaging.sendEach(messages);
   }
