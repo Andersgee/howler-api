@@ -19,7 +19,7 @@ export const chatDataSchema = z.object({
   id: z.number(),
   createdAt: z.date(),
   text: z.string(),
-  eventchatId: z.number(),
+  eventId: z.number(),
   userId: z.number(),
 });
 

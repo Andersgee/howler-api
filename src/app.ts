@@ -111,9 +111,9 @@ server.route({
   },
 });
 
-//////////////////////////////////////////////
-// Notifications (firebase cloud messaging) //
-//////////////////////////////////////////////
+//////////////////////////////
+// firebase cloud messaging //
+//////////////////////////////
 
 server.route<{
   Body: {
@@ -144,7 +144,7 @@ server.route<{
       const insertResult = await db
         .insertInto("Eventchatmessage")
         .values({
-          eventchatId: input.eventId,
+          eventId: input.eventId,
           userId: input.userId,
           text: input.text,
         })
@@ -160,11 +160,16 @@ server.route<{
 
       //get userIds
       const users = await db
-        .selectFrom("UserEventchatPivot")
+        .selectFrom("UserEventPivot")
         .select("userId")
-        .where("UserEventchatPivot.eventchatId", "=", input.eventId)
+        .where("eventId", "=", input.eventId)
         .execute();
       const userIds = users.map((user) => user.userId);
+
+      if (userIds.length < 1) {
+        //no need to do anything else
+        return "ok";
+      }
 
       //push it to users
       const data: ChatMessageData = {
@@ -176,6 +181,8 @@ server.route<{
 
       //debug: analyze response, todo: remove stale fcmTokens from db
       consolelogBatchresponseResult(batchResponse);
+
+      return "ok";
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
@@ -225,6 +232,10 @@ server.route<{
         ])
         .executeTakeFirstOrThrow();
 
+      const userIds = event.creatorFollowers.map(
+        (follower) => follower.followerId
+      );
+
       //save to db
       const insertResult = await db
         .insertInto("Notification")
@@ -237,10 +248,12 @@ server.route<{
         .executeTakeFirstOrThrow();
       const insertId = Number(insertResult.insertId);
 
+      if (userIds.length < 1) {
+        //no need to do anything else
+        return "ok";
+      }
+
       //also link it to users
-      const userIds = event.creatorFollowers.map(
-        (follower) => follower.followerId
-      );
       await db
         .insertInto("UserNotificationPivot")
         .values(
@@ -268,6 +281,8 @@ server.route<{
 
       //debug: analyze response, todo: remove stale fcmTokens from db
       consolelogBatchresponseResult(batchResponse);
+
+      return "ok";
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
