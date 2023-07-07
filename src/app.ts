@@ -178,9 +178,7 @@ server.route<{
       };
       const fcmTokens = await fcmTokensFromUserIds(userIds);
       const batchResponse = await fcm.sendChatmessage(data, fcmTokens);
-
-      //debug: analyze response, todo: remove stale fcmTokens from db
-      consolelogBatchresponseResult(batchResponse);
+      await deleteStaleFcmtokens(batchResponse, fcmTokens);
 
       return "ok";
     } catch (error) {
@@ -278,9 +276,7 @@ server.route<{
       };
       const fcmTokens = await fcmTokensFromUserIds(userIds);
       const batchResponse = await fcm.sendNotifications(data, fcmTokens);
-
-      //debug: analyze response, todo: remove stale fcmTokens from db
-      consolelogBatchresponseResult(batchResponse);
+      await deleteStaleFcmtokens(batchResponse, fcmTokens);
 
       return "ok";
     } catch (error) {
@@ -313,6 +309,60 @@ async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
     console.log("compiledQuery analyzed:", explainAnalyzeResult);
   } catch (error) {
     console.log("error:", error);
+  }
+}
+
+async function deleteStaleFcmtokens(
+  batchResponse: BatchResponse,
+  fcmTokens: string[]
+) {
+  const BAD_TOKEN_CODES = [
+    FIREBASE_MESSAGING_ERROR_CODES.REGISTRATION_TOKEN_NOT_REGISTERED,
+    FIREBASE_MESSAGING_ERROR_CODES.INVALID_RECIPIENT,
+  ];
+
+  const BAD_FORMATTING_CODES = [
+    FIREBASE_MESSAGING_ERROR_CODES.INVALID_ARGUMENT,
+    FIREBASE_MESSAGING_ERROR_CODES.INVALID_PAYLOAD,
+  ];
+
+  const isStaleTokenList = batchResponse.responses.map((response) => {
+    if (response.success) return false;
+
+    const code = response.error?.code;
+    if (!code) return false;
+
+    if (BAD_FORMATTING_CODES.includes(code)) {
+      console.log(
+        `fcm.send() response error (prob issue with the payload we sent, CODE: ${code}), error:`,
+        response.error
+      );
+
+      return false;
+    }
+
+    //delete worthy, invalid or stale
+    if (BAD_TOKEN_CODES.includes(code)) return true;
+
+    console.log(
+      `fcm.send() response error (didnt check for this explicitly, CODE: ${code}), error:`,
+      response.error
+    );
+
+    return false;
+  });
+
+  const staleFcmTokens = fcmTokens.filter((_, i) => isStaleTokenList[i]);
+  for (const fcmToken of staleFcmTokens) {
+    const deleteResult = await db
+      .deleteFrom("FcmToken")
+      .where("id", "=", fcmToken)
+      .executeTakeFirst();
+
+    console.log(
+      "deleted stale fcmToken, numDeletedRows:",
+      deleteResult.numDeletedRows
+    );
   }
 }
 
