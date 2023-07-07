@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { TokenMessage } from "firebase-admin/messaging";
 import { stringify } from "devalue";
+import { hashidFromId } from "./hashid";
 
 export const notificationDataSchema = z.object({
   type: z.literal("notification"),
@@ -16,6 +17,7 @@ export type NotificationMessageData = z.infer<typeof notificationDataSchema>;
 
 export const chatDataSchema = z.object({
   type: z.literal("chat"),
+  title: z.string(),
   id: z.number(),
   createdAt: z.date(),
   text: z.string(),
@@ -90,6 +92,29 @@ export function createNotificatonMessage(
     payload.webpush.headers = { image: data.imageUrl };
   }
 
+  return payload;
+}
+
+export function createChatMessage(data: ChatMessageData, fcmToken: string) {
+  const payload: TokenMessage = {
+    token: fcmToken,
+    notification: {
+      title: data.title,
+      body: data.text,
+      //imageUrl: message.imageUrl,
+    },
+    webpush: {
+      notification: {
+        icon: "https://howler.andyfx.net/icons/favicon-48x48.png",
+      },
+      //headers: data.imageUrl ? { image: data.imageUrl } : undefined,
+      fcmOptions: {
+        link: `https://howler.andyfx.net/event/${hashidFromId(data.eventId)}`,
+      },
+    },
+
+    data: { str: stringify(data) },
+  };
   return payload;
 }
 

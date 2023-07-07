@@ -171,9 +171,16 @@ server.route<{
         return "ok";
       }
 
+      const event = await db
+        .selectFrom("Event")
+        .select("what")
+        .where("id", "=", input.eventId)
+        .executeTakeFirstOrThrow();
+
       //push it to users
       const data: ChatMessageData = {
         type: "chat",
+        title: event.what,
         ...eventchatmessage,
       };
       const fcmTokens = await fcmTokensFromUserIds(userIds);
