@@ -8,7 +8,6 @@ import type {
 } from "firebase-admin/messaging";
 import {
   type ChatMessageData,
-  createDataMessage,
   createNotificatonMessage,
   type NotificationMessageData,
   createChatMessage,

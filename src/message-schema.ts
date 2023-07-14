@@ -109,15 +109,17 @@ export function createChatMessage(data: ChatMessageData, fcmToken: string) {
       },
       //headers: data.imageUrl ? { image: data.imageUrl } : undefined,
       fcmOptions: {
-        link: `https://howler.andyfx.net/event/${hashidFromId(data.eventId)}`,
+        link: `https://howler.andyfx.net/event/${hashidFromId(
+          data.eventId
+        )}/chat`,
       },
     },
-
+    android: { collapseKey: `howler-chat-${data.eventId}` },
     data: { str: stringify(data) },
   };
   return payload;
 }
-
+/*
 export function createDataMessage(data: ChatMessageData, fcmToken: string) {
   const payload: TokenMessage = {
     token: fcmToken,
@@ -125,3 +127,4 @@ export function createDataMessage(data: ChatMessageData, fcmToken: string) {
   };
   return payload;
 }
+*/

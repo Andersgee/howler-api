@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import { fcm } from "./firebase-cloud-messaging";
 import type {
   ChatMessageData,
+  FcmMessageData,
   NotificationMessageData,
 } from "./message-schema";
 import { db, parseCompiledQuery } from "./db";
@@ -165,11 +166,6 @@ server.route<{
         .where("eventId", "=", input.eventId)
         .execute();
       const userIds = users.map((user) => user.userId);
-
-      if (userIds.length < 1) {
-        //no need to do anything else
-        return "ok";
-      }
 
       const event = await db
         .selectFrom("Event")
