@@ -16,6 +16,10 @@ import cors from "@fastify/cors";
 import type { BatchResponse } from "firebase-admin/messaging";
 import { hashidFromId } from "./hashid";
 import { stringify } from "devalue";
+import {
+  generateV4UploadSignedUrl,
+  getBucketMetadata,
+} from "./google-cloud-storage";
 
 /*
 notes to self:
@@ -44,35 +48,12 @@ async function fcmTokensFromUserIds(userIds: number[]) {
 }
 
 /*
-async function debuginsertdate() {
-  const when = new Date();
-  const whenEnd = new Date();
-  const values = {
-    creatorId: 1,
-    what: "debugdate",
-    where: "debugdate",
-    when: when,
-    whenEnd: whenEnd,
-    who: "debugdate",
-    info: "no info",
-  };
-  console.log("before execute debugdate");
-  const insertresult = await db
-    .insertInto("Event")
-    .values(values)
-    .executeTakeFirstOrThrow();
-  console.log("after execute debugdate");
-  console.log("insertresult", insertresult);
-}
-
-await debuginsertdate();
-*/
-
 server.addHook("onRequest", async (request) => {
   if (request.headers.authorization !== process.env.AUTH_SECRET) {
     return errorMessage("CLIENTERROR_UNAUTHORIZED");
   }
 });
+*/
 
 ///////////////////////////////
 // Database queries (kysely) //
@@ -109,6 +90,59 @@ server.route({
 
     const result = await db.executeQuery(compiledQuery);
     return stringify(result);
+  },
+});
+
+//////////////////////////
+// google cloud storage //
+//////////////////////////
+
+server.route<{
+  Body: {
+    eventId: number;
+    userId: number;
+  };
+}>({
+  method: "POST",
+  url: "/generateV4UploadSignedUrl",
+  schema: {
+    body: {
+      type: "object",
+      required: ["eventId", "userId"],
+      properties: {
+        eventId: { type: "number" },
+        userId: { type: "number" },
+      },
+    },
+  },
+  handler: async (request, _reply) => {
+    console.log("handling POST /generateV4UploadSignedUrl");
+    try {
+      const { eventId, userId } = request.body;
+      const fileName = `${eventId}-${userId}`;
+      const url = await generateV4UploadSignedUrl(fileName);
+
+      return { googleCloudStorageSignedUrl: url };
+    } catch (error) {
+      console.log("error:", error);
+      return errorMessage("CLIENTERROR_BAD_REQUEST");
+    }
+  },
+});
+
+server.route({
+  method: "GET",
+  url: "/bucketmetadata",
+  handler: async (_request, _reply) => {
+    console.log("handling GET /bucketmetadata");
+    try {
+      await getBucketMetadata();
+      await generateV4UploadSignedUrl("some-filename");
+      return "ok";
+    } catch (error) {
+      console.log("error:", error);
+      return errorMessage("CLIENTERROR_BAD_REQUEST");
+    }
   },
 });
 
