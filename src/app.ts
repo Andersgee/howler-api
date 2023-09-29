@@ -141,6 +141,12 @@ server.route<{
     try {
       const input = request.body;
 
+      const event = await db
+        .selectFrom("Event")
+        .select("what")
+        .where("id", "=", input.eventId)
+        .executeTakeFirstOrThrow();
+
       //save to db
       const insertResult = await db
         .insertInto("Eventchatmessage")
@@ -166,12 +172,6 @@ server.route<{
         .where("eventId", "=", input.eventId)
         .execute();
       const userIds = users.map((user) => user.userId);
-
-      const event = await db
-        .selectFrom("Event")
-        .select("what")
-        .where("id", "=", input.eventId)
-        .executeTakeFirstOrThrow();
 
       //push it to users
       const data: ChatMessageData = {
