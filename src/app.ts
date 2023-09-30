@@ -97,30 +97,27 @@ server.route({
 
 server.route<{
   Body: {
-    eventId: number;
-    userId: number;
+    fileName: string;
   };
 }>({
   method: "POST",
-  url: "/generateV4UploadSignedUrl",
+  url: "/signedurls",
   schema: {
     body: {
       type: "object",
-      required: ["eventId", "userId"],
+      required: ["fileName"],
       properties: {
-        eventId: { type: "number" },
-        userId: { type: "number" },
+        fileName: { type: "string" },
       },
     },
   },
   handler: async (request, _reply) => {
-    console.log("handling POST /generateV4UploadSignedUrl");
+    console.log("handling POST /signedurl");
     try {
-      const { eventId, userId } = request.body;
-      const fileName = `${eventId}-${userId}`;
-      const url = await generateV4UploadSignedUrl(fileName);
+      const { fileName } = request.body;
+      const signedUrls = await generateV4UploadSignedUrl(fileName);
 
-      return { googleCloudStorageSignedUrl: url };
+      return signedUrls;
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");

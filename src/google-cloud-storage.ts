@@ -26,13 +26,23 @@ export async function generateV4UploadSignedUrl(fileName: string) {
   // Content-Type: application/octet-stream header.
 
   // Get a v4 signed URL for uploading file
-  const [url] = await bucketEventImages.file(fileName).getSignedUrl({
+  const [signedUrlPng] = await bucketEventImages.file(fileName).getSignedUrl({
     version: "v4",
     action: "write",
     expires: Date.now() + 15 * 60 * 1000, // 15 minutes
     //contentType: "application/octet-stream",
     //contentType: "image/jpeg",
     contentType: "image/png",
+    //extensionHeaders: { "content-length": 10 * ONE_MB_IN_BYTES },
+  });
+
+  const [signedUrlJpeg] = await bucketEventImages.file(fileName).getSignedUrl({
+    version: "v4",
+    action: "write",
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    //contentType: "application/octet-stream",
+    //contentType: "image/jpeg",
+    contentType: "image/jpeg",
     //extensionHeaders: { "content-length": 10 * ONE_MB_IN_BYTES },
   });
 
@@ -46,7 +56,7 @@ export async function generateV4UploadSignedUrl(fileName: string) {
     );
     */
 
-  return url;
+  return { signedUrlPng, signedUrlJpeg };
 }
 
 export async function getBucketMetadata() {
