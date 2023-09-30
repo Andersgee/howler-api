@@ -47,13 +47,11 @@ async function fcmTokensFromUserIds(userIds: number[]) {
   return fcmTokens.map((t) => t.id);
 }
 
-/*
 server.addHook("onRequest", async (request) => {
   if (request.headers.authorization !== process.env.AUTH_SECRET) {
     return errorMessage("CLIENTERROR_UNAUTHORIZED");
   }
 });
-*/
 
 ///////////////////////////////
 // Database queries (kysely) //

@@ -27,7 +27,7 @@ export async function generateV4UploadSignedUrl(fileName: string) {
       action: "write",
       expires: Date.now() + 15 * 60 * 1000, // 15 minutes
       contentType: "application/octet-stream",
-      //extensionHeaders: { "content-length": 1 * ONE_MB_IN_BYTES },
+      //extensionHeaders: { "content-length": 10 * ONE_MB_IN_BYTES },
     });
 
   /*
