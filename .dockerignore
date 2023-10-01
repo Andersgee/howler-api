@@ -6,3 +6,4 @@ Dockerfile
 .gitignore
 .eslintrc.json
 README.md
+andyfx-service-account-key.json

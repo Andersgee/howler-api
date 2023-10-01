@@ -1,15 +1,13 @@
 import "dotenv/config";
 import "./validate-process-env";
-import { type InsertObject, type CompiledQuery } from "kysely";
+import { type CompiledQuery } from "kysely";
 import Fastify from "fastify";
 import { fcm } from "./firebase-cloud-messaging";
 import type {
   ChatMessageData,
-  FcmMessageData,
   NotificationMessageData,
 } from "./message-schema";
 import { db, parseCompiledQuery } from "./db";
-import type { DB } from "./db/types";
 import { FIREBASE_MESSAGING_ERROR_CODES, errorMessage } from "./utils";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/mysql";
 import cors from "@fastify/cors";
@@ -32,7 +30,6 @@ for consistency: only use ASYNC handlers/hooks (the sync handlers use different 
 */
 
 const server = Fastify();
-console.log("registering cors");
 await server.register(cors, {
   // put your options here
 });
@@ -65,7 +62,6 @@ server.route<{ Querystring: { q: string } }>({
     if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
     if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
-      console.log("debug GET:");
       await consolelogExplainAnalyzeResult(compiledQuery);
     }
 
@@ -82,7 +78,6 @@ server.route({
     if (!compiledQuery) return errorMessage("CLIENTERROR_BAD_REQUEST");
 
     if (process.env.DEBUG_EXPLAIN_ANALYZE_QUERYS) {
-      console.log("debug POST:");
       await consolelogExplainAnalyzeResult(compiledQuery);
     }
 
@@ -114,7 +109,6 @@ server.route<{
     },
   },
   handler: async (request, _reply) => {
-    console.log("handling POST /signedurl");
     try {
       const { fileName, contentType } = request.body;
       const { signedUploadUrl, imageUrl } = await generateV4UploadSignedUrl(
@@ -124,7 +118,7 @@ server.route<{
       //`https://storage.googleapis.com/howler-event-images/${fileName}`
       return { signedUploadUrl, imageUrl };
     } catch (error) {
-      console.log("error:", error);
+      logError(error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
@@ -134,12 +128,11 @@ server.route({
   method: "GET",
   url: "/bucketmetadata",
   handler: async (_request, _reply) => {
-    console.log("handling GET /bucketmetadata");
     try {
       const str = await getBucketMetadata();
       return str;
     } catch (error) {
-      console.log("error:", error);
+      logError(error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
@@ -170,7 +163,6 @@ server.route<{
     },
   },
   handler: async (request, _reply) => {
-    console.log("handling POST /chat");
     try {
       const input = request.body;
 
@@ -218,7 +210,7 @@ server.route<{
 
       return "ok";
     } catch (error) {
-      console.log("error:", error);
+      logError(error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
@@ -241,7 +233,6 @@ server.route<{
     },
   },
   handler: async (request, _reply) => {
-    console.log("handling POST /notifyeventcreated");
     try {
       const body = request.body;
 
@@ -316,7 +307,7 @@ server.route<{
 
       return "ok";
     } catch (error) {
-      console.log("error:", error);
+      logError(error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
     }
   },
@@ -344,7 +335,7 @@ async function consolelogExplainAnalyzeResult(compiledQuery: CompiledQuery) {
     const explainAnalyzeResult = await db.executeQuery(debugQuery);
     console.log("compiledQuery analyzed:", explainAnalyzeResult);
   } catch (error) {
-    console.log("error:", error);
+    logError(error);
   }
 }
 
@@ -369,22 +360,19 @@ async function deleteStaleFcmtokens(
     if (!code) return false;
 
     if (BAD_FORMATTING_CODES.includes(code)) {
-      console.log(
-        `fcm.send() response error (prob issue with the payload we sent, CODE: ${code}), error:`,
-        response.error
+      logError(
+        response.error,
+        `fcm.send() response error (prob issue with the payload we sent, CODE: ${code})`
       );
-
       return false;
     }
 
-    //delete worthy, invalid or stale
+    //delete bad tokens (invalid or stale)
     if (BAD_TOKEN_CODES.includes(code)) return true;
-
-    console.log(
-      `fcm.send() response error (didnt check for this explicitly, CODE: ${code}), error:`,
-      response.error
+    logError(
+      response.error,
+      `fcm.send() response error (didnt check for this explicitly, CODE: ${code})`
     );
-
     return false;
   });
 
@@ -407,7 +395,7 @@ function consolelogBatchresponseResult(batchResponse: BatchResponse) {
     if (!response.success) {
       const code = response.error?.code; //guaranteed to exist when response.success is false
       if (!code) {
-        console.log("fcm.send() response error (no code)");
+        logError(null, "fcm.send() response error (no code)");
         continue;
       }
       if (
@@ -416,9 +404,9 @@ function consolelogBatchresponseResult(batchResponse: BatchResponse) {
           FIREBASE_MESSAGING_ERROR_CODES.INVALID_PAYLOAD,
         ].includes(code)
       ) {
-        console.log(
-          "fcm.send() response error (there is prob an issue with the payload we sent), error:",
-          response.error
+        logError(
+          response.error,
+          "fcm.send() response error (there is prob an issue with the payload we sent), error:"
         );
       } else if (
         [
@@ -426,16 +414,16 @@ function consolelogBatchresponseResult(batchResponse: BatchResponse) {
           FIREBASE_MESSAGING_ERROR_CODES.INVALID_RECIPIENT,
         ].includes(code)
       ) {
-        console.log(
-          "fcm.send() response error (fcmToken is probably stale, should remove it from db). error:",
-          response.error
+        logError(
+          response.error,
+          "fcm.send() response error (fcmToken is probably stale, should remove it from db). error:"
         );
         //TODO: remove any stale/invalid tokens
         //see best practises https://firebase.google.com/docs/cloud-messaging/manage-tokens
       } else {
-        console.log(
-          "fcm.send() response error (I didnt check for this error explicitly). error:",
-          response.error
+        logError(
+          response.error,
+          "fcm.send() response error (I didnt check for this error explicitly). error:"
         );
       }
     }
@@ -445,6 +433,11 @@ function consolelogBatchresponseResult(batchResponse: BatchResponse) {
 //////////////////
 // start server //
 //////////////////
+
+function logError(error: unknown, msg?: string) {
+  console.log(msg);
+  console.log("error:", error);
+}
 
 async function start() {
   try {
