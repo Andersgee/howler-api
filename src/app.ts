@@ -98,26 +98,31 @@ server.route({
 server.route<{
   Body: {
     fileName: string;
+    contentType: string;
   };
 }>({
   method: "POST",
-  url: "/signedurls",
+  url: "/signedurl",
   schema: {
     body: {
       type: "object",
-      required: ["fileName"],
+      required: ["fileName", "contentType"],
       properties: {
         fileName: { type: "string" },
+        contentType: { type: "string" },
       },
     },
   },
   handler: async (request, _reply) => {
     console.log("handling POST /signedurl");
     try {
-      const { fileName } = request.body;
-      const signedUrls = await generateV4UploadSignedUrl(fileName);
-
-      return signedUrls;
+      const { fileName, contentType } = request.body;
+      const { signedUploadUrl, imageUrl } = await generateV4UploadSignedUrl(
+        fileName,
+        contentType
+      );
+      //`https://storage.googleapis.com/howler-event-images/${fileName}`
+      return { signedUploadUrl, imageUrl };
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");
@@ -131,9 +136,8 @@ server.route({
   handler: async (_request, _reply) => {
     console.log("handling GET /bucketmetadata");
     try {
-      await getBucketMetadata();
-      await generateV4UploadSignedUrl("some-filename");
-      return "ok";
+      const str = await getBucketMetadata();
+      return str;
     } catch (error) {
       console.log("error:", error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");

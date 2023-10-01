@@ -3,6 +3,9 @@ import { Storage } from "@google-cloud/storage";
 //update bucket cors:
 //gcloud storage buckets update gs://howler-event-images --cors-file=howler-event-images-cors.json
 
+//perhaps consider smaller less cache time... for updating images, or just create a new and delete old one?
+//https://cloud.google.com/storage/docs/caching#performance_considerations
+
 // Creates a client
 //const storage = new Storage({ keyFilename: "andyfx-service-account-key.json" });
 
@@ -21,17 +24,25 @@ const bucketEventImages = storage.bucket("howler-event-images");
 //TODO: check if setting "content-length" is enough to limit file size
 //else check this: https://blog.koliseo.com/limit-the-size-of-uploaded-files-with-signed-urls-on-google-cloud-storage/
 
-export async function generateV4UploadSignedUrl(fileName: string) {
-  // These options will allow temporary uploading of the file with outgoing
-  // Content-Type: application/octet-stream header.
+export async function generateV4UploadSignedUrl(
+  fileName: string,
+  contentType: string
+) {
+  const [signedUploadUrl] = await bucketEventImages
+    .file(fileName)
+    .getSignedUrl({
+      version: "v4",
+      action: "write",
+      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      contentType: contentType,
+      //extensionHeaders: { "content-length": 10 * ONE_MB_IN_BYTES },
+    });
 
-  // Get a v4 signed URL for uploading file
+  /*
   const [signedUrlPng] = await bucketEventImages.file(fileName).getSignedUrl({
     version: "v4",
     action: "write",
     expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-    //contentType: "application/octet-stream",
-    //contentType: "image/jpeg",
     contentType: "image/png",
     //extensionHeaders: { "content-length": 10 * ONE_MB_IN_BYTES },
   });
@@ -40,27 +51,17 @@ export async function generateV4UploadSignedUrl(fileName: string) {
     version: "v4",
     action: "write",
     expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-    //contentType: "application/octet-stream",
-    //contentType: "image/jpeg",
     contentType: "image/jpeg",
     //extensionHeaders: { "content-length": 10 * ONE_MB_IN_BYTES },
   });
+  */
 
-  /*
-    console.log('Generated PUT signed URL:');
-    console.log(url);
-    console.log('You can use this URL with any user agent, for example:');
-    console.log(
-      "curl -X PUT -H 'Content-Type: application/octet-stream' " +
-        `--upload-file my-file '${url}'`
-    );
-    */
+  const imageUrl = `https://storage.googleapis.com/howler-event-images/${fileName}`;
 
-  return { signedUrlPng, signedUrlJpeg };
+  return { signedUploadUrl, imageUrl };
 }
 
 export async function getBucketMetadata() {
   const [metadata] = await bucketEventImages.getMetadata();
-  console.log(JSON.stringify(metadata, null, 2));
-  //return metadata;
+  return JSON.stringify(metadata, null, 2);
 }

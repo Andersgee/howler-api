@@ -3,12 +3,12 @@
     "origin": ["https://howler.andyfx.net"],
     "method": ["GET", "PUT"],
     "responseHeader": ["Content-Type"],
-    "maxAgeSeconds": 3600
+    "maxAgeSeconds": 18144000
   },
   {
     "origin": ["http://localhost:3000"],
     "method": ["GET", "PUT"],
     "responseHeader": ["Content-Type"],
-    "maxAgeSeconds": 3600
+    "maxAgeSeconds": 18144000
   }
 ]
