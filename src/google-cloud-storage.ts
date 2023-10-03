@@ -24,6 +24,8 @@ const bucketEventImages = storage.bucket("howler-event-images");
 //TODO: check if setting "content-length" is enough to limit file size
 //else check this: https://blog.koliseo.com/limit-the-size-of-uploaded-files-with-signed-urls-on-google-cloud-storage/
 
+//also about setting max-age, see: https://stackoverflow.com/a/55597471/7420810
+
 export async function generateV4UploadSignedUrl(
   fileName: string,
   contentType: string
