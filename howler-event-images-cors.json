@@ -2,13 +2,21 @@
   {
     "origin": ["https://howler.andyfx.net"],
     "method": ["PUT"],
-    "responseHeader": ["Content-Type", "Cache-Control"],
+    "responseHeader": [
+      "Content-Type",
+      "Cache-Control",
+      "X-Goog-Content-Length-Range"
+    ],
     "maxAgeSeconds": 3600
   },
   {
     "origin": ["http://localhost:3000"],
     "method": ["PUT"],
-    "responseHeader": ["Content-Type", "Cache-Control"],
+    "responseHeader": [
+      "Content-Type",
+      "Cache-Control",
+      "X-Goog-Content-Length-Range"
+    ],
     "maxAgeSeconds": 3600
   },
   {
