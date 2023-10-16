@@ -15,6 +15,7 @@ import type { BatchResponse } from "firebase-admin/messaging";
 import { hashidFromId } from "./hashid";
 import { stringify } from "devalue";
 import {
+  deleteImageFromBucket,
   generateV4UploadSignedUrl,
   getBucketMetadata,
 } from "./google-cloud-storage";
@@ -117,6 +118,53 @@ server.route<{
       );
       //`https://storage.googleapis.com/howler-event-images/${fileName}`
       return { signedUploadUrl, imageUrl };
+    } catch (error) {
+      logError(error);
+      return errorMessage("CLIENTERROR_BAD_REQUEST");
+    }
+  },
+});
+
+server.route<{
+  Body: {
+    eventId: number;
+  };
+}>({
+  method: "POST",
+  url: "/removeimage",
+  schema: {
+    body: {
+      type: "object",
+      required: ["eventId"],
+      properties: {
+        eventId: { type: "number" },
+      },
+    },
+  },
+  handler: async (request, _reply) => {
+    try {
+      const { eventId } = request.body;
+      const event = await db
+        .selectFrom("Event")
+        .select("image")
+        .where("id", "=", eventId)
+        .executeTakeFirst();
+
+      const oldImage = event?.image;
+
+      if (!oldImage) return "ok";
+
+      const _updateResult_Event = await db
+        .updateTable("Event")
+        .where("id", "=", eventId)
+        .set({
+          image: null,
+        })
+        .executeTakeFirstOrThrow();
+
+      await deleteImageFromBucket(oldImage);
+
+      return "ok";
     } catch (error) {
       logError(error);
       return errorMessage("CLIENTERROR_BAD_REQUEST");

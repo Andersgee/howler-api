@@ -13,6 +13,7 @@ export type Event = {
   whenEnd: Timestamp;
   who: string;
   info: string;
+  image: string | null;
 };
 export type Eventchatmessage = {
   id: Generated<number>;
@@ -20,6 +21,17 @@ export type Eventchatmessage = {
   text: string;
   eventId: number;
   userId: number;
+};
+export type EventLocation = {
+  id: Generated<number>;
+  lng: number;
+  lat: number;
+  placeName: string | null;
+  eventId: number;
+};
+export type EventLocationTilePivot = {
+  eventLocationId: number;
+  tileId: string;
 };
 export type Example = {
   id: Generated<number>;
@@ -38,6 +50,9 @@ export type Notification = {
   imageUrl: string | null;
   linkUrl: string;
   relativeLinkUrl: string;
+};
+export type Tile = {
+  id: string;
 };
 export type User = {
   id: Generated<number>;
@@ -64,9 +79,12 @@ export type UserUserPivot = {
 export type DB = {
   Event: Event;
   Eventchatmessage: Eventchatmessage;
+  EventLocation: EventLocation;
+  EventLocationTilePivot: EventLocationTilePivot;
   Example: Example;
   FcmToken: FcmToken;
   Notification: Notification;
+  Tile: Tile;
   User: User;
   UserEventPivot: UserEventPivot;
   UserNotificationPivot: UserNotificationPivot;

@@ -58,6 +58,8 @@ const storage = new Storage({
 
 const bucketEventImages = storage.bucket("howler-event-images");
 
+const BASE_URL = "https://storage.googleapis.com/howler-event-images/";
+
 //https://cloud.google.com/storage/docs/access-control/signing-urls-with-helpers#client-libraries_1
 
 export async function generateV4UploadSignedUrl(
@@ -75,7 +77,7 @@ export async function generateV4UploadSignedUrl(
       extensionHeaders: { "X-Goog-Content-Length-Range": "0,10000000" }, //10MB
     });
 
-  const imageUrl = `https://storage.googleapis.com/howler-event-images/${fileName}`;
+  const imageUrl = `${BASE_URL}${fileName}`;
 
   return { signedUploadUrl, imageUrl };
 }
@@ -83,4 +85,16 @@ export async function generateV4UploadSignedUrl(
 export async function getBucketMetadata() {
   const [metadata] = await bucketEventImages.getMetadata();
   return JSON.stringify(metadata, null, 2);
+}
+
+export async function deleteImageFromBucket(imageUrl: string) {
+  //const imageUrl = `https://storage.googleapis.com/howler-event-images/${fileName}`;
+
+  const fileName = imageUrl.split(BASE_URL)[1];
+
+  const [res] = await bucketEventImages.file(fileName).delete({
+    ignoreNotFound: true,
+  });
+
+  return res?.statusCode === 204;
 }
